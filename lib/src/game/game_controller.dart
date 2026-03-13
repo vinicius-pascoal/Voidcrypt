@@ -35,6 +35,11 @@ class GameController extends ChangeNotifier {
   int mapVisualSeed = 0;
   int damageFlashTick = 0;
 
+  int potions = 0;
+  int bombs = 0;
+  int temporalShields = 0;
+  int shieldTurns = 0;
+
   int stamina = 4;
   int maxStamina = 4;
 
@@ -42,12 +47,15 @@ class GameController extends ChangeNotifier {
 
   final List<RelicType> activeRelics = [];
   List<RewardOption> pendingRewards = [];
+  List<ShopItem> pendingShopItems = [];
+  bool _shopPhaseActive = false;
 
   Timer? _animationResetTimer;
   bool _busy = false;
 
   bool get isBusy => _busy;
   bool get isAwaitingRewardChoice => pendingRewards.isNotEmpty;
+  bool get isAwaitingShopChoice => _shopPhaseActive;
 
   int get attackRange =>
       1 + activeRelics.where((r) => r == RelicType.longReach).length;
@@ -62,9 +70,15 @@ class GameController extends ChangeNotifier {
     steps = 0;
     floor = 1;
     shards = 0;
+    potions = 0;
+    bombs = 0;
+    temporalShields = 0;
+    shieldTurns = 0;
     stamina = maxStamina;
     activeRelics.clear();
     pendingRewards = [];
+    pendingShopItems = [];
+    _shopPhaseActive = false;
     telegraphedDamage = {};
     _loadFloor(resetMessage: 'Run reiniciada. A cripta mudou de forma.');
   }
@@ -138,7 +152,7 @@ class GameController extends ChangeNotifier {
   }
 
   void movePlayer(int dx, int dy) {
-    if (_busy || isAwaitingRewardChoice) return;
+    if (_busy || isAwaitingRewardChoice || isAwaitingShopChoice) return;
 
     final next = Point(player.x + dx, player.y + dy);
 
@@ -188,12 +202,28 @@ class GameController extends ChangeNotifier {
     final lootIndex = _lootIndexAt(player);
     if (lootIndex != -1) {
       final drop = loot.removeAt(lootIndex);
+      final rarityMultiplier = switch (drop.rarity) {
+        LootRarity.common => 1,
+        LootRarity.rare => 2,
+        LootRarity.epic => 3,
+      };
+
       if (drop.type == LootType.essence) {
-        hp = min(maxHp, hp + 1);
-        message = 'Essencia coletada. +1 HP.';
+        final healAmount = rarityMultiplier;
+        hp = min(maxHp, hp + healAmount);
+        message = switch (drop.rarity) {
+          LootRarity.common => 'Essencia comum: +1 HP.',
+          LootRarity.rare => 'Essencia rara: +2 HP.',
+          LootRarity.epic => 'Essencia epica: +3 HP.',
+        };
       } else {
-        shards += 1;
-        message = 'Fragmento encontrado. Shards: $shards.';
+        final shardGain = rarityMultiplier;
+        shards += shardGain;
+        message = switch (drop.rarity) {
+          LootRarity.common => 'Shard comum +1. Total: $shards.',
+          LootRarity.rare => 'Shard raro +2. Total: $shards.',
+          LootRarity.epic => 'Shard epico +3. Total: $shards.',
+        };
       }
     } else {
       message = 'Voce avancou entre as salas.';
@@ -218,7 +248,7 @@ class GameController extends ChangeNotifier {
   }
 
   void attack() {
-    if (_busy || isAwaitingRewardChoice) return;
+    if (_busy || isAwaitingRewardChoice || isAwaitingShopChoice) return;
 
     if (stamina < 2) {
       message = 'Stamina insuficiente para ataque forte.';
@@ -292,7 +322,7 @@ class GameController extends ChangeNotifier {
   }
 
   void waitTurn() {
-    if (_busy || isAwaitingRewardChoice) return;
+    if (_busy || isAwaitingRewardChoice || isAwaitingShopChoice) return;
 
     _busy = true;
     _captureAnimationOrigins();
@@ -315,9 +345,15 @@ class GameController extends ChangeNotifier {
     hp = maxHp;
     steps = 0;
     shards = 0;
+    potions = 0;
+    bombs = 0;
+    temporalShields = 0;
+    shieldTurns = 0;
     stamina = maxStamina;
     activeRelics.clear();
     pendingRewards = [];
+    pendingShopItems = [];
+    _shopPhaseActive = false;
     telegraphedDamage = {};
     _loadFloor(resetMessage: 'Voce caiu. A cripta reiniciou.');
   }
@@ -338,6 +374,29 @@ class GameController extends ChangeNotifier {
   void _openRewardSelection() {
     pendingRewards = _buildRandomRewardOptions();
     message = 'Escolha uma recompensa para o piso $floor.';
+  }
+
+  List<ShopItem> _buildShopItems() {
+    return const [
+      ShopItem(
+        consumable: ConsumableType.potion,
+        cost: 3,
+        title: 'Pocao',
+        description: 'Usar: recupera 2 HP.',
+      ),
+      ShopItem(
+        consumable: ConsumableType.bomb,
+        cost: 4,
+        title: 'Bomba',
+        description: 'Usar: dano em area adjacente.',
+      ),
+      ShopItem(
+        consumable: ConsumableType.temporalShield,
+        cost: 5,
+        title: 'Escudo Temporal',
+        description: 'Usar: reduz dano recebido por 2 turnos.',
+      ),
+    ];
   }
 
   List<RewardOption> _buildRandomRewardOptions() {
@@ -375,7 +434,137 @@ class GameController extends ChangeNotifier {
     }
 
     pendingRewards = [];
-    _loadFloor(resetMessage: 'Reliquia recebida: ${chosen.title}.');
+    pendingShopItems = _buildShopItems();
+    _shopPhaseActive = true;
+    message = 'Reliquia recebida: ${chosen.title}. Visite a loja.';
+    notifyListeners();
+  }
+
+  void buyShopItem(int index) {
+    if (!isAwaitingShopChoice) return;
+    if (index < 0 || index >= pendingShopItems.length) return;
+
+    final item = pendingShopItems[index];
+    if (shards < item.cost) {
+      message = 'Shards insuficientes para ${item.title}.';
+      notifyListeners();
+      return;
+    }
+
+    shards -= item.cost;
+    switch (item.consumable) {
+      case ConsumableType.potion:
+        potions += 1;
+        break;
+      case ConsumableType.bomb:
+        bombs += 1;
+        break;
+      case ConsumableType.temporalShield:
+        temporalShields += 1;
+        break;
+    }
+
+    pendingShopItems.removeAt(index);
+    message = '${item.title} comprada. Shards restantes: $shards.';
+    notifyListeners();
+  }
+
+  void continueAfterShop() {
+    if (!isAwaitingShopChoice) return;
+    _shopPhaseActive = false;
+    pendingShopItems = [];
+    _loadFloor(resetMessage: 'Voce desceu para o piso $floor.');
+  }
+
+  void usePotion() {
+    if (_busy || isAwaitingRewardChoice || isAwaitingShopChoice) return;
+    if (potions <= 0) {
+      message = 'Sem pocoes no inventario.';
+      notifyListeners();
+      return;
+    }
+
+    if (hp >= maxHp) {
+      message = 'HP ja esta no maximo.';
+      notifyListeners();
+      return;
+    }
+
+    _busy = true;
+    _captureAnimationOrigins();
+    potions -= 1;
+    hp = min(maxHp, hp + 2);
+    steps++;
+    message = 'Pocao usada. +2 HP.';
+    _enemyTurn();
+    _afterTurn();
+    _queueAnimationReset();
+    notifyListeners();
+    _busy = false;
+  }
+
+  void useBomb() {
+    if (_busy || isAwaitingRewardChoice || isAwaitingShopChoice) return;
+    if (bombs <= 0) {
+      message = 'Sem bombas no inventario.';
+      notifyListeners();
+      return;
+    }
+
+    _busy = true;
+    _captureAnimationOrigins();
+    bombs -= 1;
+    steps++;
+
+    final targets = <int>[];
+    for (int i = 0; i < enemies.length; i++) {
+      final enemy = enemies[i];
+      final distance =
+          (enemy.position.x - player.x).abs() +
+          (enemy.position.y - player.y).abs();
+      if (distance == 1) {
+        targets.add(i);
+      }
+    }
+
+    targets.sort((a, b) => b.compareTo(a));
+    int kills = 0;
+    for (final i in targets) {
+      if (i < enemies.length && _applyDamageToEnemy(i, 2)) {
+        kills += 1;
+      }
+    }
+
+    message = kills > 0
+        ? 'Bomba explodiu e eliminou $kills inimigos.'
+        : 'Bomba usada, mas sem alvos adjacentes.';
+
+    _enemyTurn();
+    _afterTurn();
+    _queueAnimationReset();
+    notifyListeners();
+    _busy = false;
+  }
+
+  void useTemporalShield() {
+    if (_busy || isAwaitingRewardChoice || isAwaitingShopChoice) return;
+    if (temporalShields <= 0) {
+      message = 'Sem escudos temporais no inventario.';
+      notifyListeners();
+      return;
+    }
+
+    _busy = true;
+    _captureAnimationOrigins();
+    temporalShields -= 1;
+    shieldTurns = max(shieldTurns, 2);
+    steps++;
+    message = 'Escudo temporal ativado por 2 turnos.';
+    _enemyTurn();
+    _afterTurn();
+    _queueAnimationReset();
+    notifyListeners();
+    _busy = false;
   }
 
   bool _canEnemyMoveTo(Point<int> position, List<Point<int>> occupied) {
@@ -511,7 +700,10 @@ class GameController extends ChangeNotifier {
   void _enemyTurn() {
     if (enemies.isEmpty && telegraphedDamage.isEmpty) return;
 
-    final incomingDamage = telegraphedDamage[player] ?? 0;
+    final rawIncomingDamage = telegraphedDamage[player] ?? 0;
+    final incomingDamage = shieldTurns > 0
+        ? max(0, rawIncomingDamage - 1)
+        : rawIncomingDamage;
     bool playerWasHit = false;
 
     if (incomingDamage > 0) {
@@ -521,6 +713,10 @@ class GameController extends ChangeNotifier {
     }
 
     telegraphedDamage = {};
+
+    if (shieldTurns > 0) {
+      shieldTurns -= 1;
+    }
 
     if (enemies.isEmpty) {
       if (playerWasHit) {

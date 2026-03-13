@@ -129,10 +129,21 @@ class DungeonGenerator {
 
     for (int i = 0; i < lootCount && freeCells.isNotEmpty; i++) {
       final position = freeCells.removeLast();
+      final rarityRoll = _random.nextInt(100);
+      final rarity = rarityRoll < 68
+          ? LootRarity.common
+          : (rarityRoll < 93 ? LootRarity.rare : LootRarity.epic);
       final type = _random.nextInt(100) < 40
           ? LootType.essence
           : LootType.shard;
-      loot.add(LootDrop(id: _nextLootId++, type: type, position: position));
+      loot.add(
+        LootDrop(
+          id: _nextLootId++,
+          type: type,
+          rarity: rarity,
+          position: position,
+        ),
+      );
     }
 
     return FloorData(

@@ -122,6 +122,28 @@ class GameBoard extends StatelessWidget {
     }
   }
 
+  Color _rarityColor(LootRarity rarity) {
+    switch (rarity) {
+      case LootRarity.common:
+        return Colors.white;
+      case LootRarity.rare:
+        return const Color(0xFF6FD5FF);
+      case LootRarity.epic:
+        return const Color(0xFFF2A4FF);
+    }
+  }
+
+  double _rarityGlow(LootRarity rarity) {
+    switch (rarity) {
+      case LootRarity.common:
+        return 0.0;
+      case LootRarity.rare:
+        return 6.0;
+      case LootRarity.epic:
+        return 10.0;
+    }
+  }
+
   IconData _enemyIcon(EnemyType type) {
     switch (type) {
       case EnemyType.pursuer:
@@ -251,10 +273,33 @@ class GameBoard extends StatelessWidget {
                             color: const Color(0xFF72F0B5),
                           ),
                         if (loot != null)
-                          Icon(
-                            _lootIcon(loot.type),
-                            size: iconSize * 0.66,
-                            color: _lootColor(loot.type),
+                          Container(
+                            decoration: BoxDecoration(
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _rarityColor(loot.rarity).withValues(
+                                    alpha: loot.rarity == LootRarity.common
+                                        ? 0
+                                        : 0.65,
+                                  ),
+                                  blurRadius: _rarityGlow(loot.rarity),
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: Icon(
+                              _lootIcon(loot.type),
+                              size: iconSize * 0.66,
+                              color: Color.lerp(
+                                _lootColor(loot.type),
+                                _rarityColor(loot.rarity),
+                                loot.rarity == LootRarity.common
+                                    ? 0
+                                    : (loot.rarity == LootRarity.rare
+                                          ? 0.35
+                                          : 0.65),
+                              ),
+                            ),
                           ),
                         if (telegraphByPosition.containsKey(pos))
                           Positioned.fill(

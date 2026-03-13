@@ -4,9 +4,13 @@ enum TileType { wall, floor, exit }
 
 enum LootType { essence, shard }
 
+enum LootRarity { common, rare, epic }
+
 enum RelicType { longReach, criticalEdge, vitalityCore }
 
 enum EnemyType { pursuer, archer, tank, summoner, boss }
+
+enum ConsumableType { potion, bomb, temporalShield }
 
 class EnemyEntity {
   final int id;
@@ -62,12 +66,28 @@ class RewardOption {
 class LootDrop {
   final int id;
   final LootType type;
+  final LootRarity rarity;
   final Point<int> position;
 
   const LootDrop({
     required this.id,
     required this.type,
+    this.rarity = LootRarity.common,
     required this.position,
+  });
+}
+
+class ShopItem {
+  final ConsumableType consumable;
+  final int cost;
+  final String title;
+  final String description;
+
+  const ShopItem({
+    required this.consumable,
+    required this.cost,
+    required this.title,
+    required this.description,
   });
 }
 
