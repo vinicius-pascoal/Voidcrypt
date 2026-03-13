@@ -31,6 +31,7 @@ class GameController extends ChangeNotifier {
   int steps = 0;
   int floor = 1;
   int shards = 0;
+  int mapVisualSeed = 0;
   String message = 'Explore as salas e encontre a saida.';
 
   Timer? _animationResetTimer;
@@ -67,6 +68,7 @@ class GameController extends ChangeNotifier {
     };
     loot = List<LootDrop>.from(data.loot);
     exit = data.exit;
+    mapVisualSeed = _random.nextInt(1 << 30);
     message = resetMessage ?? 'Piso $floor gerado proceduralmente.';
 
     _queueAnimationReset();
