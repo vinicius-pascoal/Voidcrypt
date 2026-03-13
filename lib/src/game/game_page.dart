@@ -179,6 +179,8 @@ class _GamePageState extends State<GamePage> {
                         child: ControlPanel(
                           hp: _controller.hp,
                           maxHp: _controller.maxHp,
+                          stamina: _controller.stamina,
+                          maxStamina: _controller.maxStamina,
                           floor: _controller.floor,
                           shards: _controller.shards,
                           onUp: () => _controller.movePlayer(0, -1),

@@ -122,6 +122,36 @@ class GameBoard extends StatelessWidget {
     }
   }
 
+  IconData _enemyIcon(EnemyType type) {
+    switch (type) {
+      case EnemyType.pursuer:
+        return Icons.blur_on_rounded;
+      case EnemyType.archer:
+        return Icons.north_east_rounded;
+      case EnemyType.tank:
+        return Icons.shield_rounded;
+      case EnemyType.summoner:
+        return Icons.auto_awesome_rounded;
+      case EnemyType.boss:
+        return Icons.local_fire_department_rounded;
+    }
+  }
+
+  Color _enemyColor(EnemyType type) {
+    switch (type) {
+      case EnemyType.pursuer:
+        return const Color(0xFFC24BFF);
+      case EnemyType.archer:
+        return const Color(0xFF69A8FF);
+      case EnemyType.tank:
+        return const Color(0xFF5DBA7B);
+      case EnemyType.summoner:
+        return const Color(0xFFE6B85A);
+      case EnemyType.boss:
+        return const Color(0xFFFF845A);
+    }
+  }
+
   bool _isInside(int x, int y) {
     return y >= 0 &&
         y < controller.map.length &&
@@ -163,6 +193,7 @@ class GameBoard extends StatelessWidget {
         final lootByPosition = {
           for (final drop in controller.loot) drop.position: drop,
         };
+        final telegraphByPosition = controller.telegraphedDamage;
 
         final children = <Widget>[];
 
@@ -225,6 +256,26 @@ class GameBoard extends StatelessWidget {
                             size: iconSize * 0.66,
                             color: _lootColor(loot.type),
                           ),
+                        if (telegraphByPosition.containsKey(pos))
+                          Positioned.fill(
+                            child: IgnorePointer(
+                              child: Container(
+                                color: const Color(
+                                  0xFFFF445A,
+                                ).withValues(alpha: 0.22),
+                                alignment: Alignment.topRight,
+                                padding: const EdgeInsets.all(2),
+                                child: Text(
+                                  '${telegraphByPosition[pos]}',
+                                  style: const TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                       ],
                     ),
                   ),
@@ -240,8 +291,8 @@ class GameBoard extends StatelessWidget {
         children.add(
           AnimatedPositioned(
             key: const ValueKey('player-entity'),
-            duration: const Duration(milliseconds: 140),
-            curve: Curves.easeOutCubic,
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeInOutCubic,
             left: playerLeft,
             top: playerTop,
             width: cellWidth,
@@ -299,15 +350,13 @@ class GameBoard extends StatelessWidget {
           final left = (enemy.position.x - startCol) * cellWidth;
           final top = (enemy.position.y - startRow) * cellHeight;
           final enemySize = enemy.isBoss ? iconSize * 1.2 : iconSize;
-          final enemyColor = enemy.isBoss
-              ? const Color(0xFFFF845A)
-              : const Color(0xFFC24BFF);
+          final enemyColor = _enemyColor(enemy.type);
 
           children.add(
             AnimatedPositioned(
               key: ValueKey('enemy-${enemy.id}'),
-              duration: const Duration(milliseconds: 140),
-              curve: Curves.easeOutCubic,
+              duration: const Duration(milliseconds: 190),
+              curve: Curves.easeInOutCubic,
               left: left,
               top: top,
               width: cellWidth,
@@ -326,9 +375,7 @@ class GameBoard extends StatelessWidget {
                       alignment: Alignment.center,
                       children: [
                         Icon(
-                          enemy.isBoss
-                              ? Icons.local_fire_department_rounded
-                              : Icons.blur_on_rounded,
+                          _enemyIcon(enemy.type),
                           size: enemySize * 0.72,
                           color: Colors.white,
                         ),

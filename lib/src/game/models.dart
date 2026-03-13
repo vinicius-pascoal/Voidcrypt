@@ -6,12 +6,16 @@ enum LootType { essence, shard }
 
 enum RelicType { longReach, criticalEdge, vitalityCore }
 
+enum EnemyType { pursuer, archer, tank, summoner, boss }
+
 class EnemyEntity {
   final int id;
   final Point<int> position;
   final int hp;
   final int maxHp;
   final bool isBoss;
+  final EnemyType type;
+  final int aiState;
 
   const EnemyEntity({
     required this.id,
@@ -19,6 +23,8 @@ class EnemyEntity {
     required this.hp,
     required this.maxHp,
     this.isBoss = false,
+    this.type = EnemyType.pursuer,
+    this.aiState = 0,
   });
 
   EnemyEntity copyWith({
@@ -26,6 +32,8 @@ class EnemyEntity {
     int? hp,
     int? maxHp,
     bool? isBoss,
+    EnemyType? type,
+    int? aiState,
   }) {
     return EnemyEntity(
       id: id,
@@ -33,6 +41,8 @@ class EnemyEntity {
       hp: hp ?? this.hp,
       maxHp: maxHp ?? this.maxHp,
       isBoss: isBoss ?? this.isBoss,
+      type: type ?? this.type,
+      aiState: aiState ?? this.aiState,
     );
   }
 }

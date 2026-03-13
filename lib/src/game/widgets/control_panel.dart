@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 class ControlPanel extends StatelessWidget {
   final int hp;
   final int maxHp;
+  final int stamina;
+  final int maxStamina;
   final int floor;
   final int shards;
 
@@ -20,6 +22,8 @@ class ControlPanel extends StatelessWidget {
     super.key,
     required this.hp,
     required this.maxHp,
+    required this.stamina,
+    required this.maxStamina,
     required this.floor,
     required this.shards,
     required this.onUp,
@@ -193,6 +197,10 @@ class ControlPanel extends StatelessWidget {
             runSpacing: 8,
             children: [
               _statChip(Icons.favorite_rounded, 'HP $hp/$maxHp'),
+              _statChip(
+                Icons.local_fire_department_rounded,
+                'STA $stamina/$maxStamina',
+              ),
               _statChip(Icons.layers_rounded, 'Piso $floor'),
               _statChip(Icons.diamond_rounded, 'Shards $shards'),
             ],

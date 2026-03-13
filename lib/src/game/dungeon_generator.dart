@@ -83,8 +83,17 @@ class DungeonGenerator {
         continue;
       }
 
+      final type = _randomEnemyType(floor);
+      final hp = type == EnemyType.tank ? 2 : 1;
+
       enemies.add(
-        EnemyEntity(id: _nextEnemyId++, position: position, hp: 1, maxHp: 1),
+        EnemyEntity(
+          id: _nextEnemyId++,
+          position: position,
+          hp: hp,
+          maxHp: hp,
+          type: type,
+        ),
       );
     }
 
@@ -110,6 +119,7 @@ class DungeonGenerator {
           hp: bossHp,
           maxHp: bossHp,
           isBoss: true,
+          type: EnemyType.boss,
         ),
       );
     }
@@ -136,6 +146,26 @@ class DungeonGenerator {
 
   int _distance(Point<int> a, Point<int> b) {
     return (a.x - b.x).abs() + (a.y - b.y).abs();
+  }
+
+  EnemyType _randomEnemyType(int floor) {
+    final roll = _random.nextInt(100);
+
+    if (floor < 4) {
+      if (roll < 70) return EnemyType.pursuer;
+      return EnemyType.tank;
+    }
+
+    if (floor < 6) {
+      if (roll < 45) return EnemyType.pursuer;
+      if (roll < 72) return EnemyType.archer;
+      return EnemyType.tank;
+    }
+
+    if (roll < 38) return EnemyType.pursuer;
+    if (roll < 64) return EnemyType.archer;
+    if (roll < 84) return EnemyType.tank;
+    return EnemyType.summoner;
   }
 
   void _carveRoom(List<List<TileType>> tiles, _Rect room) {
