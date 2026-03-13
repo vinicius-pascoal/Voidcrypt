@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'src/game/game_page.dart';
+import 'src/menu/main_menu_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,7 +31,7 @@ class VoidcryptApp extends StatelessWidget {
           brightness: Brightness.dark,
         ),
       ),
-      home: const GamePage(),
+      home: const MainMenuPage(),
     );
   }
 }
