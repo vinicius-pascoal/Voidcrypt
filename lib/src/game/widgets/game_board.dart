@@ -298,6 +298,10 @@ class GameBoard extends StatelessWidget {
         for (final enemy in controller.enemies) {
           final left = (enemy.position.x - startCol) * cellWidth;
           final top = (enemy.position.y - startRow) * cellHeight;
+          final enemySize = enemy.isBoss ? iconSize * 1.2 : iconSize;
+          final enemyColor = enemy.isBoss
+              ? const Color(0xFFFF845A)
+              : const Color(0xFFC24BFF);
 
           children.add(
             AnimatedPositioned(
@@ -312,16 +316,34 @@ class GameBoard extends StatelessWidget {
                 padding: const EdgeInsets.all(2),
                 child: Center(
                   child: Container(
-                    width: iconSize,
-                    height: iconSize,
-                    decoration: const BoxDecoration(
+                    width: enemySize,
+                    height: enemySize,
+                    decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Color(0xFFC24BFF),
+                      color: enemyColor,
                     ),
-                    child: Icon(
-                      Icons.blur_on_rounded,
-                      size: iconSize * 0.72,
-                      color: Colors.white,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Icon(
+                          enemy.isBoss
+                              ? Icons.local_fire_department_rounded
+                              : Icons.blur_on_rounded,
+                          size: enemySize * 0.72,
+                          color: Colors.white,
+                        ),
+                        if (enemy.isBoss)
+                          Positioned(
+                            top: 2,
+                            child: Text(
+                              '${enemy.hp}',
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),

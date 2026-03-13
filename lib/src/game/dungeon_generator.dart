@@ -73,7 +73,8 @@ class DungeonGenerator {
 
     freeCells.shuffle(_random);
 
-    final enemyCount = min(18, 3 + floor * 2);
+    final hasBoss = floor % 3 == 0;
+    final enemyCount = min(18, 3 + floor * 2 - (hasBoss ? 1 : 0));
     final enemies = <EnemyEntity>[];
 
     for (int i = 0; i < enemyCount && freeCells.isNotEmpty; i++) {
@@ -82,7 +83,35 @@ class DungeonGenerator {
         continue;
       }
 
-      enemies.add(EnemyEntity(id: _nextEnemyId++, position: position));
+      enemies.add(
+        EnemyEntity(id: _nextEnemyId++, position: position, hp: 1, maxHp: 1),
+      );
+    }
+
+    if (hasBoss && freeCells.isNotEmpty) {
+      Point<int> bossPosition = freeCells.removeLast();
+      int bestDistance = _distance(bossPosition, playerStart);
+
+      for (final candidate in freeCells) {
+        final distance = _distance(candidate, playerStart);
+        if (distance > bestDistance) {
+          bestDistance = distance;
+          bossPosition = candidate;
+        }
+      }
+
+      freeCells.remove(bossPosition);
+
+      final bossHp = 4 + (floor ~/ 3);
+      enemies.add(
+        EnemyEntity(
+          id: _nextEnemyId++,
+          position: bossPosition,
+          hp: bossHp,
+          maxHp: bossHp,
+          isBoss: true,
+        ),
+      );
     }
 
     final lootCount = min(12, 2 + floor * 2);

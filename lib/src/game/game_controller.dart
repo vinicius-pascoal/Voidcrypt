@@ -35,10 +35,21 @@ class GameController extends ChangeNotifier {
   int damageFlashTick = 0;
   String message = 'Explore as salas e encontre a saida.';
 
+  final List<RelicType> activeRelics = [];
+  List<RewardOption> pendingRewards = [];
+
   Timer? _animationResetTimer;
   bool _busy = false;
 
   bool get isBusy => _busy;
+  bool get isAwaitingRewardChoice => pendingRewards.isNotEmpty;
+
+  int get attackRange =>
+      1 + activeRelics.where((r) => r == RelicType.longReach).length;
+
+  double get critChance =>
+      (0.10 * activeRelics.where((r) => r == RelicType.criticalEdge).length)
+          .clamp(0.0, 0.6);
 
   void startNewRun() {
     hp = 5;
@@ -46,6 +57,8 @@ class GameController extends ChangeNotifier {
     steps = 0;
     floor = 1;
     shards = 0;
+    activeRelics.clear();
+    pendingRewards = [];
     _loadFloor(resetMessage: 'Run reiniciada. A cripta mudou de forma.');
   }
 
@@ -111,7 +124,7 @@ class GameController extends ChangeNotifier {
   }
 
   void movePlayer(int dx, int dy) {
-    if (_busy) return;
+    if (_busy || isAwaitingRewardChoice) return;
 
     final next = Point(player.x + dx, player.y + dy);
 
@@ -127,13 +140,28 @@ class GameController extends ChangeNotifier {
     final enemyIndex = _enemyIndexAt(next);
     if (enemyIndex != -1) {
       final enemy = enemies[enemyIndex];
-      enemies.removeAt(enemyIndex);
+      final wasCritical = _random.nextDouble() < critChance;
+      final damage = wasCritical ? 2 : 1;
+      final killed = _applyDamageToEnemy(enemyIndex, damage);
       steps++;
-      message = 'Voce golpeou um espectro.';
+      if (killed) {
+        message = enemy.isBoss
+            ? 'Golpe final no mini-chefe!'
+            : (wasCritical
+                  ? 'Critico! Espectro dissipado.'
+                  : 'Voce golpeou um espectro.');
+      } else {
+        final remaining = enemies.firstWhere((e) => e.id == enemy.id).hp;
+        message = wasCritical
+            ? 'Critico! Mini-chefe ferido ($remaining HP).'
+            : 'Inimigo ferido ($remaining HP).';
+      }
 
       _enemyTurn();
       _afterTurn();
-      previousEnemyPositions.remove(enemy.id);
+      if (killed) {
+        previousEnemyPositions.remove(enemy.id);
+      }
       _queueAnimationReset();
       notifyListeners();
       _busy = false;
@@ -160,8 +188,9 @@ class GameController extends ChangeNotifier {
     if (player == exit) {
       floor += 1;
       hp = min(maxHp, hp + 1);
-      _loadFloor(resetMessage: 'Voce desceu para o piso $floor.');
+      _openRewardSelection();
       _busy = false;
+      notifyListeners();
       return;
     }
 
@@ -173,7 +202,7 @@ class GameController extends ChangeNotifier {
   }
 
   void attack() {
-    if (_busy) return;
+    if (_busy || isAwaitingRewardChoice) return;
 
     _busy = true;
     _captureAnimationOrigins();
@@ -188,8 +217,21 @@ class GameController extends ChangeNotifier {
     int targetIndex = -1;
 
     for (final dir in dirs) {
-      final target = Point(player.x + dir.x, player.y + dir.y);
-      targetIndex = _enemyIndexAt(target);
+      for (int step = 1; step <= attackRange; step++) {
+        final target = Point(
+          player.x + (dir.x * step),
+          player.y + (dir.y * step),
+        );
+        if (_isWall(target)) {
+          break;
+        }
+
+        targetIndex = _enemyIndexAt(target);
+        if (targetIndex != -1) {
+          break;
+        }
+      }
+
       if (targetIndex != -1) {
         break;
       }
@@ -197,13 +239,26 @@ class GameController extends ChangeNotifier {
 
     if (targetIndex != -1) {
       final enemy = enemies[targetIndex];
-      enemies.removeAt(targetIndex);
+      final wasCritical = _random.nextDouble() < critChance;
+      final damage = wasCritical ? 2 : 1;
+      final killed = _applyDamageToEnemy(targetIndex, damage);
       steps++;
-      message = 'Ataque certeiro.';
-      previousEnemyPositions.remove(enemy.id);
+      if (killed) {
+        message = enemy.isBoss
+            ? 'Mini-chefe abatido!'
+            : (wasCritical ? 'Critico certeiro!' : 'Ataque certeiro.');
+        previousEnemyPositions.remove(enemy.id);
+      } else {
+        final remaining = enemies.firstWhere((e) => e.id == enemy.id).hp;
+        message = wasCritical
+            ? 'Critico! Inimigo com $remaining HP.'
+            : 'Inimigo com $remaining HP.';
+      }
       _enemyTurn();
     } else {
-      message = 'Nenhum inimigo adjacente.';
+      message = attackRange > 1
+          ? 'Nenhum inimigo no alcance.'
+          : 'Nenhum inimigo adjacente.';
       _enemyTurn();
     }
 
@@ -214,7 +269,7 @@ class GameController extends ChangeNotifier {
   }
 
   void waitTurn() {
-    if (_busy) return;
+    if (_busy || isAwaitingRewardChoice) return;
 
     _busy = true;
     _captureAnimationOrigins();
@@ -236,7 +291,66 @@ class GameController extends ChangeNotifier {
     hp = maxHp;
     steps = 0;
     shards = 0;
+    activeRelics.clear();
+    pendingRewards = [];
     _loadFloor(resetMessage: 'Voce caiu. A cripta reiniciou.');
+  }
+
+  bool _applyDamageToEnemy(int index, int damage) {
+    final enemy = enemies[index];
+    final remaining = enemy.hp - damage;
+
+    if (remaining <= 0) {
+      enemies.removeAt(index);
+      return true;
+    }
+
+    enemies[index] = enemy.copyWith(hp: remaining);
+    return false;
+  }
+
+  void _openRewardSelection() {
+    final options = _buildRandomRewardOptions();
+    pendingRewards = options;
+    message = 'Escolha uma recompensa para o piso $floor.';
+  }
+
+  List<RewardOption> _buildRandomRewardOptions() {
+    final candidates = <RewardOption>[
+      const RewardOption(
+        relic: RelicType.longReach,
+        title: 'Lanca Estendida',
+        description: '+1 alcance de ataque.',
+      ),
+      const RewardOption(
+        relic: RelicType.criticalEdge,
+        title: 'Lamina Voraz',
+        description: '+10% chance de critico.',
+      ),
+      const RewardOption(
+        relic: RelicType.vitalityCore,
+        title: 'Nucleo Vital',
+        description: '+1 HP maximo e cura 1 HP.',
+      ),
+    ]..shuffle(_random);
+
+    return candidates.take(2).toList(growable: false);
+  }
+
+  void chooseReward(int index) {
+    if (!isAwaitingRewardChoice) return;
+    if (index < 0 || index >= pendingRewards.length) return;
+
+    final chosen = pendingRewards[index];
+    activeRelics.add(chosen.relic);
+
+    if (chosen.relic == RelicType.vitalityCore) {
+      maxHp += 1;
+      hp = min(maxHp, hp + 1);
+    }
+
+    pendingRewards = [];
+    _loadFloor(resetMessage: 'Reliquia recebida: ${chosen.title}.');
   }
 
   bool _canEnemyMoveTo(Point<int> position, List<Point<int>> occupied) {
@@ -261,7 +375,7 @@ class GameController extends ChangeNotifier {
 
       if (dx.abs() + dy.abs() == 1) {
         playerHit = true;
-        hp -= 1;
+        hp -= enemy.isBoss ? 2 : 1;
         moved.add(enemy);
         occupied.add(enemy.position);
         continue;
