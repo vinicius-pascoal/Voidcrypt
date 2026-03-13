@@ -3,6 +3,11 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 class ControlPanel extends StatelessWidget {
+  final int hp;
+  final int maxHp;
+  final int floor;
+  final int shards;
+
   final VoidCallback onUp;
   final VoidCallback onDown;
   final VoidCallback onLeft;
@@ -13,6 +18,10 @@ class ControlPanel extends StatelessWidget {
 
   const ControlPanel({
     super.key,
+    required this.hp,
+    required this.maxHp,
+    required this.floor,
+    required this.shards,
     required this.onUp,
     required this.onDown,
     required this.onLeft,
@@ -37,6 +46,21 @@ class ControlPanel extends StatelessWidget {
           backgroundColor: const Color(0xFF1C2633),
         ),
         child: Icon(icon, size: size * 0.5),
+      ),
+    );
+  }
+
+  Widget _statChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121B26),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [Icon(icon, size: 16), const SizedBox(width: 6), Text(label)],
       ),
     );
   }
@@ -73,27 +97,41 @@ class ControlPanel extends StatelessWidget {
         builder: (context, constraints) {
           final compact = constraints.maxHeight < 560;
           final veryCompact = constraints.maxHeight < 430;
-          final dpadSize = compact ? 54.0 : 68.0;
-          final spacing = compact ? 8.0 : 12.0;
           final controlWidth = min(
             constraints.maxWidth,
-            compact ? 250.0 : 300.0,
+            compact ? 320.0 : 420.0,
           );
+          final targetGap = compact ? 8.0 : 10.0;
+          final horizontalGap = min(targetGap, max(2.0, controlWidth * 0.05));
+          final maxButtonByWidth = (controlWidth - (horizontalGap * 2)) / 3;
+          final dpadSize = min(
+            compact ? 54.0 : 68.0,
+            max(24.0, maxButtonByWidth),
+          );
+          final showRestartLabel = controlWidth >= 170;
+          final restartButtonWidth = showRestartLabel
+              ? min(controlWidth, max(120.0, dpadSize * 2.2))
+              : dpadSize;
 
           Widget cluster() {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(
-                  width: dpadSize * 2,
+                  width: restartButtonWidth,
                   height: compact ? 40 : 44,
-                  child: OutlinedButton.icon(
-                    onPressed: onRestart,
-                    icon: const Icon(Icons.restart_alt_rounded),
-                    label: const Text('Reiniciar'),
-                  ),
+                  child: showRestartLabel
+                      ? OutlinedButton.icon(
+                          onPressed: onRestart,
+                          icon: const Icon(Icons.restart_alt_rounded),
+                          label: const Text('Reiniciar'),
+                        )
+                      : OutlinedButton(
+                          onPressed: onRestart,
+                          child: const Icon(Icons.restart_alt_rounded),
+                        ),
                 ),
-                SizedBox(height: spacing + 8),
+                const SizedBox(height: 10),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -102,13 +140,13 @@ class ControlPanel extends StatelessWidget {
                       onPressed: onAttack,
                       size: dpadSize,
                     ),
-                    SizedBox(width: spacing + 4),
+                    SizedBox(width: horizontalGap),
                     _directionButton(
                       Icons.keyboard_arrow_up_rounded,
                       onUp,
                       size: dpadSize,
                     ),
-                    SizedBox(width: spacing + 4),
+                    SizedBox(width: horizontalGap),
                     _iconControlButton(
                       icon: Icons.hourglass_bottom_rounded,
                       onPressed: onWait,
@@ -125,13 +163,13 @@ class ControlPanel extends StatelessWidget {
                       onLeft,
                       size: dpadSize,
                     ),
-                    SizedBox(width: spacing + 4),
+                    SizedBox(width: horizontalGap),
                     _directionButton(
                       Icons.keyboard_arrow_down_rounded,
                       onDown,
                       size: dpadSize,
                     ),
-                    SizedBox(width: spacing + 4),
+                    SizedBox(width: horizontalGap),
                     _directionButton(
                       Icons.keyboard_arrow_right_rounded,
                       onRight,
@@ -150,6 +188,16 @@ class ControlPanel extends StatelessWidget {
             ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
           );
 
+          final stats = Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _statChip(Icons.favorite_rounded, 'HP $hp/$maxHp'),
+              _statChip(Icons.layers_rounded, 'Piso $floor'),
+              _statChip(Icons.diamond_rounded, 'Shards $shards'),
+            ],
+          );
+
           if (veryCompact) {
             return SingleChildScrollView(
               child: ConstrainedBox(
@@ -158,6 +206,8 @@ class ControlPanel extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     title,
+                    const SizedBox(height: 10),
+                    stats,
                     const SizedBox(height: 12),
                     Align(
                       alignment: Alignment.centerRight,
@@ -173,6 +223,8 @@ class ControlPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               title,
+              const SizedBox(height: 10),
+              stats,
               const SizedBox(height: 12),
               Expanded(
                 child: Align(

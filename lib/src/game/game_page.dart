@@ -26,21 +26,6 @@ class _GamePageState extends State<GamePage> {
     super.dispose();
   }
 
-  Widget _statChip(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF121B26),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [Icon(icon, size: 18), const SizedBox(width: 8), Text(label)],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -60,25 +45,6 @@ class _GamePageState extends State<GamePage> {
                     flex: 7,
                     child: Column(
                       children: [
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: [
-                            _statChip(
-                              Icons.favorite_rounded,
-                              'HP ${_controller.hp}/${_controller.maxHp}',
-                            ),
-                            _statChip(
-                              Icons.layers_rounded,
-                              'Piso ${_controller.floor}',
-                            ),
-                            _statChip(
-                              Icons.diamond_rounded,
-                              'Shards ${_controller.shards}',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
                         Expanded(
                           child: Container(
                             decoration: BoxDecoration(
@@ -109,6 +75,10 @@ class _GamePageState extends State<GamePage> {
                   Expanded(
                     flex: 3,
                     child: ControlPanel(
+                      hp: _controller.hp,
+                      maxHp: _controller.maxHp,
+                      floor: _controller.floor,
+                      shards: _controller.shards,
                       onUp: () => _controller.movePlayer(0, -1),
                       onDown: () => _controller.movePlayer(0, 1),
                       onLeft: () => _controller.movePlayer(-1, 0),
