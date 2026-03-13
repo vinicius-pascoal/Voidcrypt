@@ -32,6 +32,7 @@ class GameController extends ChangeNotifier {
   int floor = 1;
   int shards = 0;
   int mapVisualSeed = 0;
+  int damageFlashTick = 0;
   String message = 'Explore as salas e encontre a saida.';
 
   Timer? _animationResetTimer;
@@ -308,6 +309,7 @@ class GameController extends ChangeNotifier {
     enemies = moved;
 
     if (playerHit) {
+      damageFlashTick += 1;
       message = hp > 0
           ? 'Voce sofreu dano.'
           : 'O vazio tomou sua ultima forca.';

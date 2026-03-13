@@ -249,13 +249,41 @@ class GameBoard extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.all(2),
               child: Center(
-                child: Container(
-                  width: iconSize,
-                  height: iconSize,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Color(0xFF69A8FF),
-                  ),
+                child: TweenAnimationBuilder<double>(
+                  key: ValueKey('player-hit-${controller.damageFlashTick}'),
+                  tween: Tween<double>(begin: 0, end: 1),
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOut,
+                  builder: (context, value, child) {
+                    final pulse = sin(value * pi * 4).abs() * (1 - value);
+                    final glow = (0.8 - value).clamp(0.0, 0.8);
+
+                    return Transform.scale(
+                      scale: 1 + (pulse * 0.12),
+                      child: Container(
+                        width: iconSize,
+                        height: iconSize,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color.lerp(
+                            const Color(0xFF69A8FF),
+                            const Color(0xFFFF5B6D),
+                            pulse,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(
+                                0xFFFF5B6D,
+                              ).withValues(alpha: glow),
+                              blurRadius: 12,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                        child: child,
+                      ),
+                    );
+                  },
                   child: Icon(
                     Icons.shield_rounded,
                     size: iconSize * 0.68,
