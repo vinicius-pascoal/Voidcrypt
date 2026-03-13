@@ -20,7 +20,7 @@ class DungeonGenerator {
       (_) => List.generate(width, (_) => TileType.wall),
     );
 
-    final roomCount = 6 + min(5, floor);
+    final roomCount = 6 + min(6, floor);
     final rooms = <_Rect>[];
 
     for (
@@ -41,39 +41,41 @@ class DungeonGenerator {
       }
 
       rooms.add(room);
-      _carveRoom(tiles, room);
-
-      if (rooms.length > 1) {
-        final previous = rooms[rooms.length - 2].center;
-        final current = room.center;
-
-        if (_random.nextBool()) {
-          _carveHorizontal(tiles, previous.x, current.x, previous.y);
-          _carveVertical(tiles, previous.y, current.y, current.x);
-        } else {
-          _carveVertical(tiles, previous.y, current.y, previous.x);
-          _carveHorizontal(tiles, previous.x, current.x, current.y);
-        }
-      }
     }
 
     if (rooms.isEmpty) {
       final fallback = _Rect(2, 2, width - 4, height - 4);
       rooms.add(fallback);
-      _carveRoom(tiles, fallback);
     }
+
+    for (final room in rooms) {
+      _carveRoom(tiles, room);
+    }
+
+    _connectRoomsWithLoops(tiles, rooms, floor);
 
     final playerStart = rooms.first.center;
     final exit = rooms.last.center;
     tiles[exit.y][exit.x] = TileType.exit;
 
+    final specialRooms = _buildSpecialRooms(
+      rooms: rooms,
+      floor: floor,
+      playerStart: playerStart,
+      exit: exit,
+    );
+    final specialRoomPositions = {
+      for (final room in specialRooms) room.position,
+    };
+
     final freeCells = _collectFreeCells(tiles)
       ..remove(playerStart)
-      ..remove(exit);
+      ..remove(exit)
+      ..removeWhere((cell) => specialRoomPositions.contains(cell));
 
     freeCells.shuffle(_random);
 
-    final hasBoss = floor % 3 == 0;
+    final hasBoss = floor >= 6 && floor % 3 == 0;
     final enemyCount = min(18, 3 + floor * 2 - (hasBoss ? 1 : 0));
     final enemies = <EnemyEntity>[];
 
@@ -152,7 +154,165 @@ class DungeonGenerator {
       exit: exit,
       enemies: enemies,
       loot: loot,
+      specialRooms: specialRooms,
     );
+  }
+
+  List<SpecialRoom> _buildSpecialRooms({
+    required List<_Rect> rooms,
+    required int floor,
+    required Point<int> playerStart,
+    required Point<int> exit,
+  }) {
+    if (rooms.length < 3) {
+      return const [];
+    }
+
+    final candidates =
+        rooms
+            .map((room) => room.center)
+            .where((center) => center != playerStart && center != exit)
+            .toList(growable: true)
+          ..shuffle(_random);
+
+    final desiredRooms = min(4, max(2, 2 + (floor ~/ 4)));
+    final selectedCount = min(desiredRooms, candidates.length);
+
+    final types = <SpecialRoomType>[
+      SpecialRoomType.treasure,
+      SpecialRoomType.event,
+      SpecialRoomType.trap,
+      SpecialRoomType.altar,
+    ];
+
+    final selectedTypes = <SpecialRoomType>[];
+    while (selectedTypes.length < selectedCount) {
+      types.shuffle(_random);
+      selectedTypes.addAll(types);
+    }
+
+    final roomsOut = <SpecialRoom>[];
+    for (int i = 0; i < selectedCount; i++) {
+      roomsOut.add(
+        SpecialRoom(type: selectedTypes[i], position: candidates[i]),
+      );
+    }
+
+    return roomsOut;
+  }
+
+  void _connectRoomsWithLoops(
+    List<List<TileType>> tiles,
+    List<_Rect> rooms,
+    int floor,
+  ) {
+    if (rooms.length < 2) return;
+
+    final connected = <int>{0};
+    final edges = <_RoomEdge>{};
+
+    while (connected.length < rooms.length) {
+      int bestFrom = 0;
+      int bestTo = 0;
+      int bestScore = 1 << 30;
+
+      for (final from in connected) {
+        for (int to = 0; to < rooms.length; to++) {
+          if (connected.contains(to)) continue;
+
+          final score =
+              _distance(rooms[from].center, rooms[to].center) +
+              _random.nextInt(4);
+          if (score < bestScore) {
+            bestScore = score;
+            bestFrom = from;
+            bestTo = to;
+          }
+        }
+      }
+
+      _carveCorridor(tiles, rooms[bestFrom].center, rooms[bestTo].center);
+      edges.add(_RoomEdge(bestFrom, bestTo));
+      connected.add(bestTo);
+    }
+
+    final extraConnections = min(
+      rooms.length,
+      max(1, (rooms.length ~/ 3) + (floor ~/ 3)),
+    );
+
+    int added = 0;
+    int attempts = 0;
+    while (added < extraConnections && attempts < extraConnections * 8) {
+      attempts += 1;
+
+      final from = _random.nextInt(rooms.length);
+      final near = List<int>.generate(rooms.length, (i) => i)
+        ..remove(from)
+        ..sort((a, b) {
+          final da = _distance(rooms[from].center, rooms[a].center);
+          final db = _distance(rooms[from].center, rooms[b].center);
+          return da.compareTo(db);
+        });
+
+      final candidatePool = near.take(min(3, near.length)).toList();
+      if (candidatePool.isEmpty) {
+        continue;
+      }
+
+      final to = candidatePool[_random.nextInt(candidatePool.length)];
+      final edge = _RoomEdge(from, to);
+      if (edges.contains(edge)) {
+        continue;
+      }
+
+      edges.add(edge);
+      _carveCorridor(
+        tiles,
+        rooms[from].center,
+        rooms[to].center,
+        allowDetour: true,
+      );
+      added += 1;
+    }
+  }
+
+  void _carveCorridor(
+    List<List<TileType>> tiles,
+    Point<int> from,
+    Point<int> to, {
+    bool allowDetour = false,
+  }) {
+    if (!allowDetour || _random.nextInt(100) < 60) {
+      if (_random.nextBool()) {
+        _carveHorizontal(tiles, from.x, to.x, from.y);
+        _carveVertical(tiles, from.y, to.y, to.x);
+      } else {
+        _carveVertical(tiles, from.y, to.y, from.x);
+        _carveHorizontal(tiles, from.x, to.x, to.y);
+      }
+      return;
+    }
+
+    final detourX = _clamp(
+      ((from.x + to.x) ~/ 2) + (_random.nextInt(5) - 2),
+      1,
+      tiles[0].length - 2,
+    );
+    final detourY = _clamp(
+      ((from.y + to.y) ~/ 2) + (_random.nextInt(5) - 2),
+      1,
+      tiles.length - 2,
+    );
+
+    _carveHorizontal(tiles, from.x, detourX, from.y);
+    _carveVertical(tiles, from.y, detourY, detourX);
+    _carveHorizontal(tiles, detourX, to.x, detourY);
+    _carveVertical(tiles, detourY, to.y, to.x);
+  }
+
+  int _clamp(int value, int minValue, int maxValue) {
+    return value < minValue ? minValue : (value > maxValue ? maxValue : value);
   }
 
   int _distance(Point<int> a, Point<int> b) {
@@ -162,20 +322,24 @@ class DungeonGenerator {
   EnemyType _randomEnemyType(int floor) {
     final roll = _random.nextInt(100);
 
-    if (floor < 4) {
-      if (roll < 70) return EnemyType.pursuer;
+    if (floor <= 4) {
+      return EnemyType.pursuer;
+    }
+
+    if (floor < 7) {
+      if (roll < 72) return EnemyType.pursuer;
       return EnemyType.tank;
     }
 
-    if (floor < 6) {
-      if (roll < 45) return EnemyType.pursuer;
-      if (roll < 72) return EnemyType.archer;
+    if (floor < 10) {
+      if (roll < 52) return EnemyType.pursuer;
+      if (roll < 78) return EnemyType.archer;
       return EnemyType.tank;
     }
 
-    if (roll < 38) return EnemyType.pursuer;
-    if (roll < 64) return EnemyType.archer;
-    if (roll < 84) return EnemyType.tank;
+    if (roll < 35) return EnemyType.pursuer;
+    if (roll < 58) return EnemyType.archer;
+    if (roll < 80) return EnemyType.tank;
     return EnemyType.summoner;
   }
 
@@ -245,4 +409,19 @@ class _Rect {
         y < other.y + other.height &&
         y + height > other.y;
   }
+}
+
+class _RoomEdge {
+  final int a;
+  final int b;
+
+  const _RoomEdge(int x, int y) : a = x < y ? x : y, b = x < y ? y : x;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _RoomEdge && other.a == a && other.b == b;
+  }
+
+  @override
+  int get hashCode => Object.hash(a, b);
 }

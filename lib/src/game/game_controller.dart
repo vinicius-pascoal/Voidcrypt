@@ -22,6 +22,8 @@ class GameController extends ChangeNotifier {
 
   List<EnemyEntity> enemies = [];
   List<LootDrop> loot = [];
+  Map<Point<int>, SpecialRoomType> specialRooms = {};
+  final Set<Point<int>> _visitedSpecialRooms = <Point<int>>{};
 
   Point<int>? previousPlayer;
   Map<int, Point<int>> previousEnemyPositions = {};
@@ -80,6 +82,8 @@ class GameController extends ChangeNotifier {
     pendingShopItems = [];
     _shopPhaseActive = false;
     telegraphedDamage = {};
+    specialRooms = {};
+    _visitedSpecialRooms.clear();
     _loadFloor(resetMessage: 'Run reiniciada. A cripta mudou de forma.');
   }
 
@@ -102,6 +106,10 @@ class GameController extends ChangeNotifier {
       for (final enemy in enemies) enemy.id: enemy.position,
     };
     loot = List<LootDrop>.from(data.loot);
+    specialRooms = {
+      for (final room in data.specialRooms) room.position: room.type,
+    };
+    _visitedSpecialRooms.clear();
     exit = data.exit;
     mapVisualSeed = _random.nextInt(1 << 30);
     telegraphedDamage = {};
@@ -111,6 +119,81 @@ class GameController extends ChangeNotifier {
     _queueAnimationReset();
     _buildTelegraphMap();
     notifyListeners();
+  }
+
+  bool isSpecialRoomVisited(Point<int> position) {
+    return _visitedSpecialRooms.contains(position);
+  }
+
+  void _appendMessage(String suffix) {
+    if (message.isEmpty) {
+      message = suffix;
+      return;
+    }
+    message = '$message $suffix';
+  }
+
+  void _handleSpecialRoomEntry(Point<int> position) {
+    final roomType = specialRooms[position];
+    if (roomType == null || _visitedSpecialRooms.contains(position)) {
+      return;
+    }
+
+    _visitedSpecialRooms.add(position);
+
+    switch (roomType) {
+      case SpecialRoomType.treasure:
+        final gain = 2 + _random.nextInt(3) + min<int>(2, floor ~/ 4);
+        shards += gain;
+        _appendMessage('Sala do Tesouro: +$gain shards.');
+        break;
+      case SpecialRoomType.event:
+        final eventRoll = _random.nextInt(3);
+        if (eventRoll == 0) {
+          hp = min(maxHp, hp + 1);
+          _appendMessage('Evento misterioso: voce recuperou 1 HP.');
+        } else if (eventRoll == 1) {
+          potions += 1;
+          _appendMessage('Evento arcano: voce encontrou 1 pocao.');
+        } else {
+          final reduced = shieldTurns > 0 ? 1 : 0;
+          final damage = max(0, 1 - reduced);
+          if (damage > 0) {
+            hp -= damage;
+            damageFlashTick += 1;
+            _appendMessage('Evento instavel: voce sofreu $damage de dano.');
+          } else {
+            _appendMessage('Evento instavel: o escudo bloqueou o dano.');
+          }
+        }
+        break;
+      case SpecialRoomType.trap:
+        final rawDamage = 1 + _random.nextInt(2);
+        final damage = max(0, rawDamage - (shieldTurns > 0 ? 1 : 0));
+        if (damage > 0) {
+          hp -= damage;
+          damageFlashTick += 1;
+          _appendMessage('Armadilha disparada: voce sofreu $damage de dano.');
+        } else {
+          _appendMessage(
+            'Armadilha disparada, mas o escudo absorveu o impacto.',
+          );
+        }
+        break;
+      case SpecialRoomType.altar:
+        if (hp > 1) {
+          hp -= 1;
+          maxStamina = min(7, maxStamina + 1);
+          stamina = min(maxStamina, stamina + 1);
+          damageFlashTick += 1;
+          _appendMessage('Altar profano: -1 HP e +1 stamina maxima.');
+        } else {
+          maxHp += 1;
+          hp = min(maxHp, hp + 1);
+          _appendMessage('Altar benevolente: +1 HP maximo.');
+        }
+        break;
+    }
   }
 
   bool _isInside(Point<int> p) {
@@ -227,6 +310,16 @@ class GameController extends ChangeNotifier {
       }
     } else {
       message = 'Voce avancou entre as salas.';
+    }
+
+    _handleSpecialRoomEntry(player);
+
+    if (hp <= 0) {
+      _afterTurn();
+      _queueAnimationReset();
+      notifyListeners();
+      _busy = false;
+      return;
     }
 
     _recoverStamina(1);
@@ -355,6 +448,8 @@ class GameController extends ChangeNotifier {
     pendingShopItems = [];
     _shopPhaseActive = false;
     telegraphedDamage = {};
+    specialRooms = {};
+    _visitedSpecialRooms.clear();
     _loadFloor(resetMessage: 'Voce caiu. A cripta reiniciou.');
   }
 

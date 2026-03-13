@@ -174,6 +174,32 @@ class GameBoard extends StatelessWidget {
     }
   }
 
+  IconData _specialRoomIcon(SpecialRoomType type) {
+    switch (type) {
+      case SpecialRoomType.treasure:
+        return Icons.inventory_2_rounded;
+      case SpecialRoomType.event:
+        return Icons.auto_awesome_rounded;
+      case SpecialRoomType.trap:
+        return Icons.warning_amber_rounded;
+      case SpecialRoomType.altar:
+        return Icons.account_balance_rounded;
+    }
+  }
+
+  Color _specialRoomColor(SpecialRoomType type) {
+    switch (type) {
+      case SpecialRoomType.treasure:
+        return const Color(0xFFFFD166);
+      case SpecialRoomType.event:
+        return const Color(0xFF7AF2D0);
+      case SpecialRoomType.trap:
+        return const Color(0xFFFF6B7A);
+      case SpecialRoomType.altar:
+        return const Color(0xFFBAA7FF);
+    }
+  }
+
   bool _isInside(int x, int y) {
     return y >= 0 &&
         y < controller.map.length &&
@@ -215,6 +241,7 @@ class GameBoard extends StatelessWidget {
         final lootByPosition = {
           for (final drop in controller.loot) drop.position: drop,
         };
+        final specialByPosition = controller.specialRooms;
         final telegraphByPosition = controller.telegraphedDamage;
 
         final children = <Widget>[];
@@ -226,6 +253,8 @@ class GameBoard extends StatelessWidget {
             final pos = Point(mapX, mapY);
             final tile = controller.map[mapY][mapX];
             final loot = lootByPosition[pos];
+            final specialRoom = specialByPosition[pos];
+            final specialVisited = controller.isSpecialRoomVisited(pos);
             final visibleWall =
                 tile != TileType.wall || _wallTouchesFloor(mapX, mapY);
             final tileAsset = visibleWall
@@ -298,6 +327,29 @@ class GameBoard extends StatelessWidget {
                                     : (loot.rarity == LootRarity.rare
                                           ? 0.35
                                           : 0.65),
+                              ),
+                            ),
+                          ),
+                        if (specialRoom != null)
+                          Positioned(
+                            left: 3,
+                            top: 3,
+                            child: Container(
+                              padding: const EdgeInsets.all(1),
+                              decoration: BoxDecoration(
+                                color: _specialRoomColor(specialRoom)
+                                    .withValues(
+                                      alpha: specialVisited ? 0.18 : 0.32,
+                                    ),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Icon(
+                                _specialRoomIcon(specialRoom),
+                                size: iconSize * 0.24,
+                                color: _specialRoomColor(specialRoom)
+                                    .withValues(
+                                      alpha: specialVisited ? 0.45 : 0.95,
+                                    ),
                               ),
                             ),
                           ),

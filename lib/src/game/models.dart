@@ -12,6 +12,8 @@ enum EnemyType { pursuer, archer, tank, summoner, boss }
 
 enum ConsumableType { potion, bomb, temporalShield }
 
+enum SpecialRoomType { treasure, event, trap, altar }
+
 class EnemyEntity {
   final int id;
   final Point<int> position;
@@ -91,12 +93,20 @@ class ShopItem {
   });
 }
 
+class SpecialRoom {
+  final SpecialRoomType type;
+  final Point<int> position;
+
+  const SpecialRoom({required this.type, required this.position});
+}
+
 class FloorData {
   final List<List<TileType>> tiles;
   final Point<int> playerStart;
   final Point<int> exit;
   final List<EnemyEntity> enemies;
   final List<LootDrop> loot;
+  final List<SpecialRoom> specialRooms;
 
   const FloorData({
     required this.tiles,
@@ -104,5 +114,6 @@ class FloorData {
     required this.exit,
     required this.enemies,
     required this.loot,
+    this.specialRooms = const [],
   });
 }

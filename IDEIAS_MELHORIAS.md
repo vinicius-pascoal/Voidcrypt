@@ -19,6 +19,7 @@ V
 2. Consumiveis como pocao, bomba e escudo temporal.
 3. Raridade de loot (comum, raro, epico) com cor e brilho proprios.
 
+V
 ## 4. Geracao procedural avancada
 2. Salas especiais: tesouro, evento, armadilha e altar.
 3. Regras de conectividade para garantir rotas alternativas e menos corredores lineares.
