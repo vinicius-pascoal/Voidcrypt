@@ -539,17 +539,21 @@ class _GamePageState extends State<GamePage> {
     );
   }
 
-  Widget _buildDirectionButton(IconData icon, VoidCallback onPressed) {
+  Widget _buildDirectionButton(
+    IconData icon,
+    VoidCallback onPressed, {
+    double size = 64,
+  }) {
     return SizedBox(
-      width: 64,
-      height: 64,
+      width: size,
+      height: size,
       child: FilledButton(
         onPressed: onPressed,
         style: FilledButton.styleFrom(
           padding: EdgeInsets.zero,
           backgroundColor: const Color(0xFF1C2633),
         ),
-        child: Icon(icon, size: 32),
+        child: Icon(icon, size: size * 0.5),
       ),
     );
   }
@@ -562,93 +566,136 @@ class _GamePageState extends State<GamePage> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxHeight < 560;
+          final veryCompact = constraints.maxHeight < 430;
+          final dpadSize = compact ? 54.0 : 68.0;
+          final spacing = compact ? 8.0 : 12.0;
+          final controlWidth = min(
+            constraints.maxWidth,
+            compact ? 250.0 : 300.0,
+          );
+
+          Widget iconControlButton({
+            required IconData icon,
+            required VoidCallback onPressed,
+          }) {
+            return SizedBox(
+              width: dpadSize,
+              height: dpadSize,
+              child: FilledButton(
+                onPressed: onPressed,
+                style: FilledButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  backgroundColor: const Color(0xFF1C2633),
+                ),
+                child: Icon(icon, size: dpadSize * 0.44),
+              ),
+            );
+          }
+
+          Widget controlCluster() {
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          iconControlButton(
+                            icon: Icons.gavel_rounded,
+                            onPressed: _attack,
+                          ),
+                          SizedBox(width: spacing + 4),
+                          _buildDirectionButton(
+                            Icons.keyboard_arrow_up_rounded,
+                            () => _movePlayer(0, -1),
+                            size: dpadSize,
+                          ),
+                          SizedBox(width: spacing + 4),
+                          iconControlButton(
+                            icon: Icons.hourglass_bottom_rounded,
+                            onPressed: _waitTurn,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildDirectionButton(
+                            Icons.keyboard_arrow_left_rounded,
+                            () => _movePlayer(-1, 0),
+                            size: dpadSize,
+                          ),
+                          SizedBox(width: spacing + 4),
+                          _buildDirectionButton(
+                            Icons.keyboard_arrow_down_rounded,
+                            () => _movePlayer(0, 1),
+                            size: dpadSize,
+                          ),
+                          SizedBox(width: spacing + 4),
+                          _buildDirectionButton(
+                            Icons.keyboard_arrow_right_rounded,
+                            () => _movePlayer(1, 0),
+                            size: dpadSize,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            );
+          }
+
+          final title = Text(
             "Voidcrypt",
             style: Theme.of(
               context,
             ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            style: Theme.of(
-              context,
-            ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
-          ),
-          const SizedBox(height: 16),
-          _buildActionButton(
-            icon: Icons.gavel_rounded,
-            label: "Atacar",
-            onPressed: _attack,
-          ),
-          const SizedBox(height: 10),
-          _buildActionButton(
-            icon: Icons.hourglass_bottom_rounded,
-            label: "Esperar",
-            onPressed: _waitTurn,
-          ),
-          const SizedBox(height: 16),
-          Center(
-            child: Column(
-              children: [
-                _buildDirectionButton(
-                  Icons.keyboard_arrow_up_rounded,
-                  () => _movePlayer(0, -1),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+          );
+
+          if (veryCompact) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildDirectionButton(
-                      Icons.keyboard_arrow_left_rounded,
-                      () => _movePlayer(-1, 0),
-                    ),
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      width: 64,
-                      height: 64,
-                      child: FilledButton(
-                        onPressed: () {
-                          _loadFloor(
-                            0,
-                            fullReset: true,
-                            customMessage: "A run foi reiniciada.",
-                          );
-                        },
-                        style: FilledButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          backgroundColor: const Color(0xFF3D1E5C),
-                        ),
-                        child: const Icon(Icons.refresh_rounded, size: 28),
+                    title,
+                    const SizedBox(height: 12),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: SizedBox(
+                        width: controlWidth,
+                        child: controlCluster(),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    _buildDirectionButton(
-                      Icons.keyboard_arrow_right_rounded,
-                      () => _movePlayer(1, 0),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                _buildDirectionButton(
-                  Icons.keyboard_arrow_down_rounded,
-                  () => _movePlayer(0, 1),
+              ),
+            );
+          }
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              title,
+              const SizedBox(height: 12),
+              Expanded(
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: SizedBox(width: controlWidth, child: controlCluster()),
                 ),
-              ],
-            ),
-          ),
-          const Spacer(),
-          Text(
-            "Swipe no mapa também funciona.",
-            textAlign: TextAlign.center,
-            style: Theme.of(
-              context,
-            ).textTheme.bodySmall?.copyWith(color: Colors.white54),
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
