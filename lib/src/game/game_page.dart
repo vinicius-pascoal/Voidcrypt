@@ -15,6 +15,79 @@ class GamePage extends StatefulWidget {
 class _GamePageState extends State<GamePage> {
   late final GameController _controller;
 
+  Widget _statChip(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121B26),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [Icon(icon, size: 16), const SizedBox(width: 6), Text(label)],
+      ),
+    );
+  }
+
+  Widget _topHud() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0D1520),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _statChip(
+                  Icons.favorite_rounded,
+                  'HP ${_controller.hp}/${_controller.maxHp}',
+                ),
+                _statChip(
+                  Icons.local_fire_department_rounded,
+                  'STA ${_controller.stamina}/${_controller.maxStamina}',
+                ),
+                _statChip(Icons.layers_rounded, 'Piso ${_controller.floor}'),
+                _statChip(
+                  Icons.diamond_rounded,
+                  'Shards ${_controller.shards}',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Row(
+            children: [
+              _floatingItemButton(
+                icon: Icons.medication_rounded,
+                count: _controller.potions,
+                onPressed: _controller.usePotion,
+              ),
+              const SizedBox(width: 8),
+              _floatingItemButton(
+                icon: Icons.whatshot_rounded,
+                count: _controller.bombs,
+                onPressed: _controller.useBomb,
+              ),
+              const SizedBox(width: 8),
+              _floatingItemButton(
+                icon: Icons.shield_rounded,
+                count: _controller.temporalShields,
+                onPressed: _controller.useTemporalShield,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _floatingItemButton({
     required IconData icon,
     required int count,
@@ -311,77 +384,53 @@ class _GamePageState extends State<GamePage> {
               padding: const EdgeInsets.all(14),
               child: Stack(
                 children: [
-                  Row(
+                  Column(
                     children: [
+                      _topHud(),
+                      const SizedBox(height: 12),
                       Expanded(
-                        flex: 7,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0B121B),
-                            borderRadius: BorderRadius.circular(22),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.06),
-                            ),
-                          ),
-                          padding: const EdgeInsets.all(12),
-                          child: Center(
-                            child: AspectRatio(
-                              aspectRatio:
-                                  GameController.visibleCols /
-                                  GameController.visibleRows,
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(18),
-                                child: GameBoard(controller: _controller),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              flex: 7,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0B121B),
+                                  borderRadius: BorderRadius.circular(22),
+                                  border: Border.all(
+                                    color: Colors.white.withValues(alpha: 0.06),
+                                  ),
+                                ),
+                                padding: const EdgeInsets.all(12),
+                                child: Center(
+                                  child: AspectRatio(
+                                    aspectRatio:
+                                        GameController.visibleCols /
+                                        GameController.visibleRows,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(18),
+                                      child: GameBoard(controller: _controller),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        flex: 3,
-                        child: ControlPanel(
-                          hp: _controller.hp,
-                          maxHp: _controller.maxHp,
-                          stamina: _controller.stamina,
-                          maxStamina: _controller.maxStamina,
-                          floor: _controller.floor,
-                          shards: _controller.shards,
-                          onUp: () => _controller.movePlayer(0, -1),
-                          onDown: () => _controller.movePlayer(0, 1),
-                          onLeft: () => _controller.movePlayer(-1, 0),
-                          onRight: () => _controller.movePlayer(1, 0),
-                          onAttack: _controller.attack,
-                          onWait: _controller.waitTurn,
-                          onRestart: _controller.startNewRun,
+                            const SizedBox(width: 14),
+                            Expanded(
+                              flex: 3,
+                              child: ControlPanel(
+                                onUp: () => _controller.movePlayer(0, -1),
+                                onDown: () => _controller.movePlayer(0, 1),
+                                onLeft: () => _controller.movePlayer(-1, 0),
+                                onRight: () => _controller.movePlayer(1, 0),
+                                onAttack: _controller.attack,
+                                onWait: _controller.waitTurn,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
-                  ),
-                  Positioned(
-                    left: 10,
-                    top: 10,
-                    child: Row(
-                      children: [
-                        _floatingItemButton(
-                          icon: Icons.medication_rounded,
-                          count: _controller.potions,
-                          onPressed: _controller.usePotion,
-                        ),
-                        const SizedBox(width: 8),
-                        _floatingItemButton(
-                          icon: Icons.whatshot_rounded,
-                          count: _controller.bombs,
-                          onPressed: _controller.useBomb,
-                        ),
-                        const SizedBox(width: 8),
-                        _floatingItemButton(
-                          icon: Icons.shield_rounded,
-                          count: _controller.temporalShields,
-                          onPressed: _controller.useTemporalShield,
-                        ),
-                      ],
-                    ),
                   ),
                   if (_controller.isAwaitingRewardChoice)
                     _rewardOverlay(context),
