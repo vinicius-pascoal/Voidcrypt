@@ -38,6 +38,10 @@ flutter:
   uses-material-design: true
   assets:
     - assets/character/
+    - assets/enemies/archer/
+    - assets/enemies/tank/
+    - assets/enemies/summoner/
+    - assets/enemies/boss/
     - assets/enemies/pursuer/
     - assets/tiles/tiles_muro/
     - assets/tiles/tiles_piso/

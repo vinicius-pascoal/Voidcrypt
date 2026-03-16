@@ -82,6 +82,34 @@ class GameBoard extends StatelessWidget {
     '-1,0': 'assets/enemies/pursuer/west.png',
   };
 
+  static const Map<String, String> _archerSpriteByDirection = {
+    '0,-1': 'assets/enemies/archer/north.png',
+    '1,0': 'assets/enemies/archer/east.png',
+    '0,1': 'assets/enemies/archer/south.png',
+    '-1,0': 'assets/enemies/archer/west.png',
+  };
+
+  static const Map<String, String> _tankSpriteByDirection = {
+    '0,-1': 'assets/enemies/tank/north.png',
+    '1,0': 'assets/enemies/tank/east.png',
+    '0,1': 'assets/enemies/tank/south.png',
+    '-1,0': 'assets/enemies/tank/west.png',
+  };
+
+  static const Map<String, String> _summonerSpriteByDirection = {
+    '0,-1': 'assets/enemies/summoner/north.png',
+    '1,0': 'assets/enemies/summoner/east.png',
+    '0,1': 'assets/enemies/summoner/south.png',
+    '-1,0': 'assets/enemies/summoner/west.png',
+  };
+
+  static const Map<String, String> _bossSpriteByDirection = {
+    '0,-1': 'assets/enemies/boss/north.png',
+    '1,0': 'assets/enemies/boss/east.png',
+    '0,1': 'assets/enemies/boss/south.png',
+    '-1,0': 'assets/enemies/boss/west.png',
+  };
+
   const GameBoard({super.key, required this.controller});
 
   Color _tileColor(TileType tile) {
@@ -132,6 +160,63 @@ class GameBoard extends StatelessWidget {
 
     final key = '${dx},${dy}';
     return _pursuerSpriteByDirection[key] ?? 'assets/enemies/pursuer/south.png';
+  }
+
+  String _archerSpriteAssetPath(EnemyEntity enemy) {
+    final key = _enemyFacingKey(enemy);
+    return _archerSpriteByDirection[key] ?? 'assets/enemies/archer/south.png';
+  }
+
+  String _tankSpriteAssetPath(EnemyEntity enemy) {
+    final key = _enemyFacingKey(enemy);
+    return _tankSpriteByDirection[key] ?? 'assets/enemies/tank/south.png';
+  }
+
+  String _summonerSpriteAssetPath(EnemyEntity enemy) {
+    final key = _enemyFacingKey(enemy);
+    return _summonerSpriteByDirection[key] ??
+        'assets/enemies/summoner/south.png';
+  }
+
+  String _bossSpriteAssetPath(EnemyEntity enemy) {
+    final key = _enemyFacingKey(enemy);
+    return _bossSpriteByDirection[key] ?? 'assets/enemies/boss/south.png';
+  }
+
+  String _enemyFacingKey(EnemyEntity enemy) {
+    final previous =
+        controller.previousEnemyPositions[enemy.id] ?? enemy.position;
+    int dx = (enemy.position.x - previous.x).sign;
+    int dy = (enemy.position.y - previous.y).sign;
+
+    if (dx == 0 && dy == 0) {
+      final toPlayerX = controller.player.x - enemy.position.x;
+      final toPlayerY = controller.player.y - enemy.position.y;
+      if (toPlayerX.abs() >= toPlayerY.abs()) {
+        dx = toPlayerX.sign;
+        dy = 0;
+      } else {
+        dx = 0;
+        dy = toPlayerY.sign;
+      }
+    }
+
+    return '${dx},${dy}';
+  }
+
+  String _enemySpriteAssetPath(EnemyEntity enemy) {
+    switch (enemy.type) {
+      case EnemyType.pursuer:
+        return _pursuerSpriteAssetPath(enemy);
+      case EnemyType.archer:
+        return _archerSpriteAssetPath(enemy);
+      case EnemyType.tank:
+        return _tankSpriteAssetPath(enemy);
+      case EnemyType.summoner:
+        return _summonerSpriteAssetPath(enemy);
+      case EnemyType.boss:
+        return _bossSpriteAssetPath(enemy);
+    }
   }
 
   IconData _lootIcon(LootType type) {
@@ -482,8 +567,8 @@ class GameBoard extends StatelessWidget {
         for (final enemy in controller.enemies) {
           final left = (enemy.position.x - startCol) * cellWidth;
           final top = (enemy.position.y - startRow) * cellHeight;
-          final isPursuer = enemy.type == EnemyType.pursuer;
-          final enemySize = isPursuer
+          final hasEnemySprite = true;
+          final enemySize = hasEnemySprite
               ? pursuerSpriteBaseSize
               : (enemy.isBoss ? iconSize * 1.2 : iconSize);
           final enemyColor = _enemyColor(enemy.type);
@@ -505,17 +590,17 @@ class GameBoard extends StatelessWidget {
                     height: enemySize,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: isPursuer ? Colors.transparent : enemyColor,
+                      color: hasEnemySprite ? Colors.transparent : enemyColor,
                     ),
                     child: Stack(
                       alignment: Alignment.center,
                       clipBehavior: Clip.none,
                       children: [
-                        if (isPursuer)
+                        if (hasEnemySprite)
                           Transform.scale(
                             scale: _enemySpriteScale,
                             child: Image.asset(
-                              _pursuerSpriteAssetPath(enemy),
+                              _enemySpriteAssetPath(enemy),
                               fit: BoxFit.contain,
                               filterQuality: FilterQuality.high,
                               errorBuilder: (context, error, stackTrace) {
