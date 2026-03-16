@@ -279,11 +279,14 @@ class GameController extends ChangeNotifier {
                   ? 'Critico! Espectro dissipado.'
                   : 'Voce golpeou um espectro.');
         previousEnemyPositions.remove(enemy.id);
+        _buildTelegraphMap();
       } else {
+        final knocked = _tryKnockback(enemyIndex, dx, dy);
         final remaining = enemies.firstWhere((e) => e.id == enemy.id).hp;
+        final knockMsg = knocked ? ' Recuou!' : '';
         message = wasCritical
-            ? 'Critico! Inimigo com $remaining HP.'
-            : 'Inimigo ferido ($remaining HP).';
+            ? 'Critico! Inimigo com $remaining HP.$knockMsg'
+            : 'Inimigo ferido ($remaining HP).$knockMsg';
       }
 
       _recoverStamina(1);
@@ -378,6 +381,7 @@ class GameController extends ChangeNotifier {
     ];
 
     int targetIndex = -1;
+    Point<int> attackDir = const Point(0, 0);
 
     for (final dir in dirs) {
       for (int step = 1; step <= attackRange; step++) {
@@ -391,6 +395,7 @@ class GameController extends ChangeNotifier {
 
         targetIndex = _enemyIndexAt(target);
         if (targetIndex != -1) {
+          attackDir = dir;
           break;
         }
       }
@@ -413,11 +418,14 @@ class GameController extends ChangeNotifier {
             ? 'Mini-chefe abatido!'
             : (wasCritical ? 'Critico devastador!' : 'Ataque forte certeiro.');
         previousEnemyPositions.remove(enemy.id);
+        _buildTelegraphMap();
       } else {
+        final knocked = _tryKnockback(targetIndex, attackDir.x, attackDir.y);
         final remaining = enemies.firstWhere((e) => e.id == enemy.id).hp;
+        final knockMsg = knocked ? ' Recuau!' : '';
         message = wasCritical
-            ? 'Critico! Inimigo com $remaining HP.'
-            : 'Impacto forte! Inimigo com $remaining HP.';
+            ? 'Critico! Inimigo com $remaining HP.$knockMsg'
+            : 'Impacto forte! Inimigo com $remaining HP.$knockMsg';
       }
     } else {
       message = 'Ataque forte no vazio.';
@@ -480,6 +488,16 @@ class GameController extends ChangeNotifier {
 
     enemies[index] = enemy.copyWith(hp: remaining);
     return false;
+  }
+
+  /// Tenta empurrar o inimigo em [index] 1 tile na direção (dx, dy).
+  /// Retorna true se o knockback ocorreu (tile livre e não-parede).
+  bool _tryKnockback(int index, int dx, int dy) {
+    final enemy = enemies[index];
+    final dest = Point<int>(enemy.position.x + dx, enemy.position.y + dy);
+    if (_isWall(dest) || _enemyIndexAt(dest) != -1) return false;
+    enemies[index] = enemy.copyWith(position: dest);
+    return true;
   }
 
   void _openRewardSelection() {
