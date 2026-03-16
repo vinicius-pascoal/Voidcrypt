@@ -7,6 +7,8 @@ import '../models.dart';
 
 class GameBoard extends StatelessWidget {
   final GameController controller;
+  static const double _playerSpriteScale = 1.72;
+  static const double _enemySpriteScale = 1.88;
 
   static const List<String> _wallTileAssets = [
     'assets/tiles/tiles_muro/Tile_04.png',
@@ -73,6 +75,13 @@ class GameBoard extends StatelessWidget {
     '-1,-1': 'assets/character/north-west.png',
   };
 
+  static const Map<String, String> _pursuerSpriteByDirection = {
+    '0,-1': 'assets/enemies/pursuer/north.png',
+    '1,0': 'assets/enemies/pursuer/east.png',
+    '0,1': 'assets/enemies/pursuer/south.png',
+    '-1,0': 'assets/enemies/pursuer/west.png',
+  };
+
   const GameBoard({super.key, required this.controller});
 
   Color _tileColor(TileType tile) {
@@ -101,6 +110,28 @@ class GameBoard extends StatelessWidget {
   String _playerSpriteAssetPath() {
     final key = '${controller.facingDx},${controller.facingDy}';
     return _playerSpriteByDirection[key] ?? 'assets/character/south.png';
+  }
+
+  String _pursuerSpriteAssetPath(EnemyEntity enemy) {
+    final previous =
+        controller.previousEnemyPositions[enemy.id] ?? enemy.position;
+    int dx = (enemy.position.x - previous.x).sign;
+    int dy = (enemy.position.y - previous.y).sign;
+
+    if (dx == 0 && dy == 0) {
+      final toPlayerX = controller.player.x - enemy.position.x;
+      final toPlayerY = controller.player.y - enemy.position.y;
+      if (toPlayerX.abs() >= toPlayerY.abs()) {
+        dx = toPlayerX.sign;
+        dy = 0;
+      } else {
+        dx = 0;
+        dy = toPlayerY.sign;
+      }
+    }
+
+    final key = '${dx},${dy}';
+    return _pursuerSpriteByDirection[key] ?? 'assets/enemies/pursuer/south.png';
   }
 
   IconData _lootIcon(LootType type) {
@@ -236,6 +267,8 @@ class GameBoard extends StatelessWidget {
         final cellWidth = constraints.maxWidth / GameController.visibleCols;
         final cellHeight = constraints.maxHeight / GameController.visibleRows;
         final iconSize = min(cellWidth, cellHeight) * 0.52;
+        final playerSpriteBaseSize = min(cellWidth, cellHeight) * 0.9;
+        final pursuerSpriteBaseSize = min(cellWidth, cellHeight) * 0.96;
 
         final lootByPosition = {
           for (final drop in controller.loot) drop.position: drop,
@@ -394,7 +427,7 @@ class GameBoard extends StatelessWidget {
             width: cellWidth,
             height: cellHeight,
             child: Padding(
-              padding: const EdgeInsets.all(2),
+              padding: const EdgeInsets.all(0.5),
               child: Center(
                 child: TweenAnimationBuilder<double>(
                   key: ValueKey('player-hit-${controller.damageFlashTick}'),
@@ -408,8 +441,8 @@ class GameBoard extends StatelessWidget {
                     return Transform.scale(
                       scale: 1 + (pulse * 0.12),
                       child: Container(
-                        width: iconSize,
-                        height: iconSize,
+                        width: playerSpriteBaseSize,
+                        height: playerSpriteBaseSize,
                         decoration: BoxDecoration(
                           boxShadow: [
                             BoxShadow(
@@ -425,17 +458,20 @@ class GameBoard extends StatelessWidget {
                       ),
                     );
                   },
-                  child: Image.asset(
-                    _playerSpriteAssetPath(),
-                    fit: BoxFit.contain,
-                    filterQuality: FilterQuality.high,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Icon(
-                        Icons.shield_rounded,
-                        size: iconSize * 0.68,
-                        color: Colors.white,
-                      );
-                    },
+                  child: Transform.scale(
+                    scale: _playerSpriteScale,
+                    child: Image.asset(
+                      _playerSpriteAssetPath(),
+                      fit: BoxFit.contain,
+                      filterQuality: FilterQuality.high,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Icon(
+                          Icons.shield_rounded,
+                          size: playerSpriteBaseSize * 0.68,
+                          color: Colors.white,
+                        );
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -446,7 +482,10 @@ class GameBoard extends StatelessWidget {
         for (final enemy in controller.enemies) {
           final left = (enemy.position.x - startCol) * cellWidth;
           final top = (enemy.position.y - startRow) * cellHeight;
-          final enemySize = enemy.isBoss ? iconSize * 1.2 : iconSize;
+          final isPursuer = enemy.type == EnemyType.pursuer;
+          final enemySize = isPursuer
+              ? pursuerSpriteBaseSize
+              : (enemy.isBoss ? iconSize * 1.2 : iconSize);
           final enemyColor = _enemyColor(enemy.type);
 
           children.add(
@@ -459,23 +498,41 @@ class GameBoard extends StatelessWidget {
               width: cellWidth,
               height: cellHeight,
               child: Padding(
-                padding: const EdgeInsets.all(2),
+                padding: const EdgeInsets.all(0.5),
                 child: Center(
                   child: Container(
                     width: enemySize,
                     height: enemySize,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: enemyColor,
+                      color: isPursuer ? Colors.transparent : enemyColor,
                     ),
                     child: Stack(
                       alignment: Alignment.center,
+                      clipBehavior: Clip.none,
                       children: [
-                        Icon(
-                          _enemyIcon(enemy.type),
-                          size: enemySize * 0.72,
-                          color: Colors.white,
-                        ),
+                        if (isPursuer)
+                          Transform.scale(
+                            scale: _enemySpriteScale,
+                            child: Image.asset(
+                              _pursuerSpriteAssetPath(enemy),
+                              fit: BoxFit.contain,
+                              filterQuality: FilterQuality.high,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Icon(
+                                  _enemyIcon(enemy.type),
+                                  size: enemySize * 0.72,
+                                  color: Colors.white,
+                                );
+                              },
+                            ),
+                          )
+                        else
+                          Icon(
+                            _enemyIcon(enemy.type),
+                            size: enemySize * 0.72,
+                            color: Colors.white,
+                          ),
                         if (enemy.isBoss)
                           Positioned(
                             top: 2,
