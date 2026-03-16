@@ -63,6 +63,9 @@ class GameController extends ChangeNotifier {
   int get facingDx => _facingDx;
   int get facingDy => _facingDy;
 
+  String shopFeedbackMessage = '';
+  bool shopFeedbackIsError = false;
+
   int get attackRange =>
       1 + activeRelics.where((r) => r == RelicType.longReach).length;
 
@@ -86,6 +89,8 @@ class GameController extends ChangeNotifier {
     activeRelics.clear();
     pendingRewards = [];
     pendingShopItems = [];
+    shopFeedbackMessage = '';
+    shopFeedbackIsError = false;
     _shopPhaseActive = false;
     telegraphedDamage = {};
     specialRooms = {};
@@ -564,6 +569,8 @@ class GameController extends ChangeNotifier {
 
     pendingRewards = [];
     pendingShopItems = _buildShopItems();
+    shopFeedbackMessage = '';
+    shopFeedbackIsError = false;
     _shopPhaseActive = true;
     message = 'Reliquia recebida: ${chosen.title}. Visite a loja.';
     notifyListeners();
@@ -576,6 +583,8 @@ class GameController extends ChangeNotifier {
     final item = pendingShopItems[index];
     if (shards < item.cost) {
       message = 'Shards insuficientes para ${item.title}.';
+      shopFeedbackMessage = message;
+      shopFeedbackIsError = true;
       notifyListeners();
       return;
     }
@@ -595,6 +604,8 @@ class GameController extends ChangeNotifier {
 
     pendingShopItems.removeAt(index);
     message = '${item.title} comprada. Shards restantes: $shards.';
+    shopFeedbackMessage = message;
+    shopFeedbackIsError = false;
     notifyListeners();
   }
 
@@ -602,6 +613,8 @@ class GameController extends ChangeNotifier {
     if (!isAwaitingShopChoice) return;
     _shopPhaseActive = false;
     pendingShopItems = [];
+    shopFeedbackMessage = '';
+    shopFeedbackIsError = false;
     _loadFloor(resetMessage: 'Voce desceu para o piso $floor.');
   }
 

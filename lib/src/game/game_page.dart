@@ -117,6 +117,61 @@ class _GamePageState extends State<GamePage> {
     }
   }
 
+  Widget _shopFeedbackBanner() {
+    final message = _controller.shopFeedbackMessage;
+    final hasFeedback = message.isNotEmpty;
+    final isSuccess = hasFeedback && !_controller.shopFeedbackIsError;
+    final isError = hasFeedback && _controller.shopFeedbackIsError;
+
+    if (!hasFeedback) {
+      return const SizedBox(height: 54);
+    }
+
+    final bgColor = isSuccess
+        ? const Color(0xFF284A36).withValues(alpha: 0.86)
+        : const Color(0xFF5A2431).withValues(alpha: 0.9);
+    final borderColor = isSuccess
+        ? const Color(0xFF7AF2C0)
+        : const Color(0xFFFF8FA7);
+    final icon = isSuccess
+        ? Icons.check_circle_rounded
+        : Icons.warning_amber_rounded;
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      child: Container(
+        key: ValueKey(message),
+        constraints: const BoxConstraints(minHeight: 54),
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor.withValues(alpha: 0.85)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: borderColor, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _rewardOverlay(BuildContext context) {
     return Positioned.fill(
       child: Container(
@@ -213,12 +268,17 @@ class _GamePageState extends State<GamePage> {
   }
 
   Widget _shopOverlay(BuildContext context) {
+    final maxOverlayHeight = MediaQuery.sizeOf(context).height * 0.82;
+
     return Positioned.fill(
       child: Container(
         color: const Color(0xFF0D0817).withValues(alpha: 0.72),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 860),
+            constraints: BoxConstraints(
+              maxWidth: 860,
+              maxHeight: maxOverlayHeight,
+            ),
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 20),
               padding: const EdgeInsets.all(18),
@@ -227,93 +287,100 @@ class _GamePageState extends State<GamePage> {
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(color: _goldBorder.withValues(alpha: 0.9)),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Loja entre pisos',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: _goldText,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Loja entre pisos',
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: _goldText,
+                          ),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Shards disponiveis: ${_controller.shards}',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: _goldText),
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      for (
-                        int i = 0;
-                        i < _controller.pendingShopItems.length;
-                        i++
-                      )
-                        Expanded(
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                              left: i == 0 ? 0 : 8,
-                              right:
-                                  i == _controller.pendingShopItems.length - 1
-                                  ? 0
-                                  : 8,
-                            ),
-                            child: OutlinedButton(
-                              onPressed: () => _controller.buyShopItem(i),
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                  horizontal: 10,
-                                ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Shards disponiveis: ${_controller.shards}',
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: _goldText),
+                    ),
+                    const SizedBox(height: 10),
+                    _shopFeedbackBanner(),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        for (
+                          int i = 0;
+                          i < _controller.pendingShopItems.length;
+                          i++
+                        )
+                          Expanded(
+                            child: Padding(
+                              padding: EdgeInsets.only(
+                                left: i == 0 ? 0 : 8,
+                                right:
+                                    i == _controller.pendingShopItems.length - 1
+                                    ? 0
+                                    : 8,
                               ),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    _consumableIcon(
+                              child: OutlinedButton(
+                                onPressed: () => _controller.buyShopItem(i),
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 14,
+                                    horizontal: 10,
+                                  ),
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      _consumableIcon(
+                                        _controller
+                                            .pendingShopItems[i]
+                                            .consumable,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      _controller.pendingShopItems[i].title,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
                                       _controller
                                           .pendingShopItems[i]
-                                          .consumable,
+                                          .description,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(fontSize: 12),
                                     ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    _controller.pendingShopItems[i].title,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      '${_controller.pendingShopItems[i].cost} shards',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _controller.pendingShopItems[i].description,
-                                    textAlign: TextAlign.center,
-                                    style: const TextStyle(fontSize: 12),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    '${_controller.pendingShopItems[i].cost} shards',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  FilledButton.icon(
-                    onPressed: _controller.continueAfterShop,
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('Continuar para o proximo piso'),
-                  ),
-                ],
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    FilledButton.icon(
+                      onPressed: _controller.continueAfterShop,
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text('Continuar para o proximo piso'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
