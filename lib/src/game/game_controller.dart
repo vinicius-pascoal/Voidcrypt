@@ -44,6 +44,8 @@ class GameController extends ChangeNotifier {
 
   int stamina = 4;
   int maxStamina = 4;
+  int _facingDx = 0;
+  int _facingDy = 1;
 
   String message = 'Explore as salas e encontre a saida.';
 
@@ -58,6 +60,8 @@ class GameController extends ChangeNotifier {
   bool get isBusy => _busy;
   bool get isAwaitingRewardChoice => pendingRewards.isNotEmpty;
   bool get isAwaitingShopChoice => _shopPhaseActive;
+  int get facingDx => _facingDx;
+  int get facingDy => _facingDy;
 
   int get attackRange =>
       1 + activeRelics.where((r) => r == RelicType.longReach).length;
@@ -77,6 +81,8 @@ class GameController extends ChangeNotifier {
     temporalShields = 0;
     shieldTurns = 0;
     stamina = maxStamina;
+    _facingDx = 0;
+    _facingDy = 1;
     activeRelics.clear();
     pendingRewards = [];
     pendingShopItems = [];
@@ -234,8 +240,18 @@ class GameController extends ChangeNotifier {
     stamina = min(maxStamina, stamina + amount);
   }
 
+  void _setFacingDirection(int dx, int dy) {
+    if (dx == 0 && dy == 0) {
+      return;
+    }
+    _facingDx = dx.sign;
+    _facingDy = dy.sign;
+  }
+
   void movePlayer(int dx, int dy) {
     if (_busy || isAwaitingRewardChoice || isAwaitingShopChoice) return;
+
+    _setFacingDirection(dx, dy);
 
     final next = Point(player.x + dx, player.y + dy);
 

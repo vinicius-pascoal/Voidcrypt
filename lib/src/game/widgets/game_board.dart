@@ -79,6 +79,17 @@ class GameBoard extends StatelessWidget {
     'assets/tiles/tiles_piso/Tile_108.png',
   ];
 
+  static const Map<String, String> _playerSpriteByDirection = {
+    '0,-1': 'assets/character/north.png',
+    '1,-1': 'assets/character/north-east.png',
+    '1,0': 'assets/character/east.png',
+    '1,1': 'assets/character/south-east.png',
+    '0,1': 'assets/character/south.png',
+    '-1,1': 'assets/character/south-west.png',
+    '-1,0': 'assets/character/west.png',
+    '-1,-1': 'assets/character/north-west.png',
+  };
+
   const GameBoard({super.key, required this.controller});
 
   Color _tileColor(TileType tile) {
@@ -102,6 +113,11 @@ class GameBoard extends StatelessWidget {
         0x7fffffff;
 
     return list[hash % list.length];
+  }
+
+  String _playerSpriteAssetPath() {
+    final key = '${controller.facingDx},${controller.facingDy}';
+    return _playerSpriteByDirection[key] ?? 'assets/character/south.png';
   }
 
   IconData _lootIcon(LootType type) {
@@ -412,12 +428,6 @@ class GameBoard extends StatelessWidget {
                         width: iconSize,
                         height: iconSize,
                         decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Color.lerp(
-                            const Color(0xFF69A8FF),
-                            const Color(0xFFFF5B6D),
-                            pulse,
-                          ),
                           boxShadow: [
                             BoxShadow(
                               color: const Color(
@@ -432,10 +442,17 @@ class GameBoard extends StatelessWidget {
                       ),
                     );
                   },
-                  child: Icon(
-                    Icons.shield_rounded,
-                    size: iconSize * 0.68,
-                    color: Colors.white,
+                  child: Image.asset(
+                    _playerSpriteAssetPath(),
+                    fit: BoxFit.contain,
+                    filterQuality: FilterQuality.high,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(
+                        Icons.shield_rounded,
+                        size: iconSize * 0.68,
+                        color: Colors.white,
+                      );
+                    },
                   ),
                 ),
               ),
