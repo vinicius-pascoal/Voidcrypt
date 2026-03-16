@@ -9,6 +9,12 @@ class ControlPanel extends StatelessWidget {
   final VoidCallback onRight;
   final VoidCallback onAttack;
   final VoidCallback onWait;
+  final int potions;
+  final int bombs;
+  final int temporalShields;
+  final VoidCallback onUsePotion;
+  final VoidCallback onUseBomb;
+  final VoidCallback onUseTemporalShield;
 
   const ControlPanel({
     super.key,
@@ -18,7 +24,58 @@ class ControlPanel extends StatelessWidget {
     required this.onRight,
     required this.onAttack,
     required this.onWait,
+    required this.potions,
+    required this.bombs,
+    required this.temporalShields,
+    required this.onUsePotion,
+    required this.onUseBomb,
+    required this.onUseTemporalShield,
   });
+
+  Widget _itemButton({
+    required IconData icon,
+    required int count,
+    required VoidCallback onPressed,
+    required double size,
+  }) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        SizedBox(
+          width: size,
+          height: size,
+          child: FilledButton(
+            onPressed: onPressed,
+            style: FilledButton.styleFrom(
+              padding: EdgeInsets.zero,
+              backgroundColor: const Color(0xFF162436),
+            ),
+            child: Icon(icon, size: size * 0.48),
+          ),
+        ),
+        if (count > 0)
+          Positioned(
+            right: -4,
+            top: -4,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF5B6D),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                '$count',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 
   Widget _directionButton(
     IconData icon,
@@ -81,11 +138,38 @@ class ControlPanel extends StatelessWidget {
             compact ? 54.0 : 68.0,
             max(24.0, maxButtonByWidth),
           );
+          final itemSize = min(dpadSize, compact ? 44.0 : 48.0);
 
           Widget cluster() {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _itemButton(
+                      icon: Icons.medication_rounded,
+                      count: potions,
+                      onPressed: onUsePotion,
+                      size: itemSize,
+                    ),
+                    SizedBox(width: horizontalGap),
+                    _itemButton(
+                      icon: Icons.whatshot_rounded,
+                      count: bombs,
+                      onPressed: onUseBomb,
+                      size: itemSize,
+                    ),
+                    SizedBox(width: horizontalGap),
+                    _itemButton(
+                      icon: Icons.shield_rounded,
+                      count: temporalShields,
+                      onPressed: onUseTemporalShield,
+                      size: itemSize,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -135,18 +219,9 @@ class ControlPanel extends StatelessWidget {
             );
           }
 
-          final title = Text(
-            'Voidcrypt',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
-          );
-
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              title,
-              const SizedBox(height: 12),
               Expanded(
                 child: Align(
                   alignment: Alignment.centerRight,

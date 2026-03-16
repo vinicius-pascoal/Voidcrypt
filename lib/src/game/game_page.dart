@@ -62,73 +62,14 @@ class _GamePageState extends State<GamePage> {
             ),
           ),
           const SizedBox(width: 10),
-          Row(
-            children: [
-              _floatingItemButton(
-                icon: Icons.medication_rounded,
-                count: _controller.potions,
-                onPressed: _controller.usePotion,
-              ),
-              const SizedBox(width: 8),
-              _floatingItemButton(
-                icon: Icons.whatshot_rounded,
-                count: _controller.bombs,
-                onPressed: _controller.useBomb,
-              ),
-              const SizedBox(width: 8),
-              _floatingItemButton(
-                icon: Icons.shield_rounded,
-                count: _controller.temporalShields,
-                onPressed: _controller.useTemporalShield,
-              ),
-            ],
+          Text(
+            'Voidcrypt',
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _floatingItemButton({
-    required IconData icon,
-    required int count,
-    required VoidCallback onPressed,
-  }) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        SizedBox(
-          width: 42,
-          height: 42,
-          child: FilledButton(
-            onPressed: onPressed,
-            style: FilledButton.styleFrom(
-              padding: EdgeInsets.zero,
-              backgroundColor: const Color(0xFF162436),
-            ),
-            child: Icon(icon, size: 20),
-          ),
-        ),
-        if (count > 0)
-          Positioned(
-            right: -4,
-            top: -4,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFF5B6D),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '$count',
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-      ],
     );
   }
 
@@ -402,15 +343,10 @@ class _GamePageState extends State<GamePage> {
                                   ),
                                 ),
                                 padding: const EdgeInsets.all(12),
-                                child: Center(
-                                  child: AspectRatio(
-                                    aspectRatio:
-                                        GameController.visibleCols /
-                                        GameController.visibleRows,
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(18),
-                                      child: GameBoard(controller: _controller),
-                                    ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(18),
+                                  child: SizedBox.expand(
+                                    child: GameBoard(controller: _controller),
                                   ),
                                 ),
                               ),
@@ -425,6 +361,13 @@ class _GamePageState extends State<GamePage> {
                                 onRight: () => _controller.movePlayer(1, 0),
                                 onAttack: _controller.attack,
                                 onWait: _controller.waitTurn,
+                                potions: _controller.potions,
+                                bombs: _controller.bombs,
+                                temporalShields: _controller.temporalShields,
+                                onUsePotion: _controller.usePotion,
+                                onUseBomb: _controller.useBomb,
+                                onUseTemporalShield:
+                                    _controller.useTemporalShield,
                               ),
                             ),
                           ],
