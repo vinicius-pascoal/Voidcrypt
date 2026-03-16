@@ -3,6 +3,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 class ControlPanel extends StatelessWidget {
+  static const Color _runeButtonBase = Color(0xFF4A3F35);
+  static const Color _runeButtonRaised = Color(0xFF5D4E41);
+  static const Color _runeBorder = Color(0xFFC89B5A);
+  static const Color _runeIcon = Color(0xFFFFF4E3);
+  static const Color _panelSurface = Color(0xFF25183A);
+
   final VoidCallback onUp;
   final VoidCallback onDown;
   final VoidCallback onLeft;
@@ -32,6 +38,20 @@ class ControlPanel extends StatelessWidget {
     required this.onUseTemporalShield,
   });
 
+  ButtonStyle _runeButtonStyle(Color background) {
+    return FilledButton.styleFrom(
+      padding: EdgeInsets.zero,
+      backgroundColor: background,
+      foregroundColor: _runeIcon,
+      elevation: 2,
+      shadowColor: const Color(0xFF000000).withValues(alpha: 0.28),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: const BorderSide(color: _runeBorder, width: 1.1),
+      ),
+    );
+  }
+
   Widget _itemButton({
     required IconData icon,
     required int count,
@@ -46,10 +66,7 @@ class ControlPanel extends StatelessWidget {
           height: size,
           child: FilledButton(
             onPressed: onPressed,
-            style: FilledButton.styleFrom(
-              padding: EdgeInsets.zero,
-              backgroundColor: const Color(0xFF162436),
-            ),
+            style: _runeButtonStyle(_runeButtonRaised),
             child: Icon(icon, size: size * 0.48),
           ),
         ),
@@ -60,15 +77,16 @@ class ControlPanel extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
               decoration: BoxDecoration(
-                color: const Color(0xFFFF5B6D),
+                color: _runeBorder,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFF2A221D), width: 0.8),
               ),
               child: Text(
                 '$count',
                 style: const TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
-                  color: Colors.white,
+                  color: Color(0xFF2A221D),
                 ),
               ),
             ),
@@ -87,10 +105,7 @@ class ControlPanel extends StatelessWidget {
       height: size,
       child: FilledButton(
         onPressed: onPressed,
-        style: FilledButton.styleFrom(
-          padding: EdgeInsets.zero,
-          backgroundColor: const Color(0xFF1C2633),
-        ),
+        style: _runeButtonStyle(_runeButtonBase),
         child: Icon(icon, size: size * 0.5),
       ),
     );
@@ -106,10 +121,7 @@ class ControlPanel extends StatelessWidget {
       height: size,
       child: FilledButton(
         onPressed: onPressed,
-        style: FilledButton.styleFrom(
-          padding: EdgeInsets.zero,
-          backgroundColor: const Color(0xFF1C2633),
-        ),
+        style: _runeButtonStyle(_runeButtonRaised),
         child: Icon(icon, size: size * 0.44),
       ),
     );
@@ -120,9 +132,9 @@ class ControlPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1520),
+        color: _panelSurface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: _runeBorder.withValues(alpha: 0.72)),
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {

@@ -25,10 +25,35 @@ class VoidcryptApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF081019),
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF7C5CFF),
-          brightness: Brightness.dark,
+        scaffoldBackgroundColor: const Color(0xFF130C1F),
+        colorScheme: const ColorScheme.dark(
+          primary: Color(0xFFA170FF),
+          onPrimary: Color(0xFF1D1230),
+          secondary: Color(0xFFE2B86A),
+          onSecondary: Color(0xFF261A09),
+          surface: Color(0xFF201533),
+          onSurface: Color(0xFFF9EEFF),
+          outline: Color(0xFFD7AA5E),
+          error: Color(0xFFFF6D8A),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFF8B5CF6),
+            foregroundColor: const Color(0xFFFFF3DF),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: const BorderSide(color: Color(0xFFD7AA5E), width: 1),
+            ),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFFFFE8C2),
+            side: const BorderSide(color: Color(0xFFD7AA5E), width: 1),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
         ),
       ),
       home: const MainMenuPage(),

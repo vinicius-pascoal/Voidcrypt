@@ -13,7 +13,7 @@ class MainMenuPage extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF070E17), Color(0xFF101E2C), Color(0xFF18283A)],
+            colors: [Color(0xFF150B23), Color(0xFF231237), Color(0xFF341A4C)],
           ),
         ),
         child: SafeArea(
@@ -27,10 +27,10 @@ class MainMenuPage extends StatelessWidget {
                   vertical: 26,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0E1824).withValues(alpha: 0.94),
+                  color: const Color(0xFF25183A).withValues(alpha: 0.94),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.1),
+                    color: const Color(0xFFD7AA5E).withValues(alpha: 0.82),
                   ),
                 ),
                 child: Column(
@@ -43,15 +43,16 @@ class MainMenuPage extends StatelessWidget {
                       style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         fontWeight: FontWeight.w800,
                         letterSpacing: 2.4,
+                        color: const Color(0xFFFFE8C2),
                       ),
                     ),
                     const SizedBox(height: 10),
                     Text(
                       'Explore salas geradas proceduralmente e sobreviva as sombras.',
                       textAlign: TextAlign.center,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFFFFE8C2),
+                      ),
                     ),
                     const SizedBox(height: 22),
                     FilledButton.icon(

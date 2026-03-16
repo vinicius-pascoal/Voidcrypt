@@ -78,11 +78,11 @@ class GameBoard extends StatelessWidget {
   Color _tileColor(TileType tile) {
     switch (tile) {
       case TileType.wall:
-        return const Color(0xFF2B3340);
+        return const Color(0xFF342747);
       case TileType.floor:
-        return const Color(0xFF111A24);
+        return const Color(0xFF1E1630);
       case TileType.exit:
-        return const Color(0xFF15382E);
+        return const Color(0xFF4A3A21);
     }
   }
 

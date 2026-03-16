@@ -14,18 +14,26 @@ class GamePage extends StatefulWidget {
 
 class _GamePageState extends State<GamePage> {
   late final GameController _controller;
+  static const Color _surfaceMain = Color(0xFF221635);
+  static const Color _surfaceSoft = Color(0xFF2C1E46);
+  static const Color _goldBorder = Color(0xFFD7AA5E);
+  static const Color _goldText = Color(0xFFFFE8C2);
 
   Widget _statChip(IconData icon, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF121B26),
+        color: _surfaceSoft,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        border: Border.all(color: _goldBorder.withValues(alpha: 0.65)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [Icon(icon, size: 16), const SizedBox(width: 6), Text(label)],
+        children: [
+          Icon(icon, size: 16, color: _goldText),
+          const SizedBox(width: 6),
+          Text(label, style: const TextStyle(color: _goldText)),
+        ],
       ),
     );
   }
@@ -34,9 +42,9 @@ class _GamePageState extends State<GamePage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D1520),
+        color: _surfaceMain,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(color: _goldBorder.withValues(alpha: 0.72)),
       ),
       child: Row(
         children: [
@@ -64,9 +72,11 @@ class _GamePageState extends State<GamePage> {
           const SizedBox(width: 10),
           Text(
             'Voidcrypt',
-            style: Theme.of(
-              context,
-            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+              color: _goldText,
+            ),
           ),
         ],
       ),
@@ -110,7 +120,7 @@ class _GamePageState extends State<GamePage> {
   Widget _rewardOverlay(BuildContext context) {
     return Positioned.fill(
       child: Container(
-        color: Colors.black.withValues(alpha: 0.5),
+        color: const Color(0xFF0D0817).withValues(alpha: 0.7),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760),
@@ -118,9 +128,9 @@ class _GamePageState extends State<GamePage> {
               margin: const EdgeInsets.symmetric(horizontal: 20),
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: const Color(0xFF0F1A28),
+                color: _surfaceMain,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                border: Border.all(color: _goldBorder.withValues(alpha: 0.9)),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -129,6 +139,7 @@ class _GamePageState extends State<GamePage> {
                     'Escolha sua recompensa',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,
+                      color: _goldText,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -136,7 +147,7 @@ class _GamePageState extends State<GamePage> {
                     'Piso ${_controller.floor}: selecione uma reliquia passiva.',
                     style: Theme.of(
                       context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                    ).textTheme.bodyMedium?.copyWith(color: _goldText),
                   ),
                   const SizedBox(height: 16),
                   Row(
@@ -204,7 +215,7 @@ class _GamePageState extends State<GamePage> {
   Widget _shopOverlay(BuildContext context) {
     return Positioned.fill(
       child: Container(
-        color: Colors.black.withValues(alpha: 0.55),
+        color: const Color(0xFF0D0817).withValues(alpha: 0.72),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 860),
@@ -212,9 +223,9 @@ class _GamePageState extends State<GamePage> {
               margin: const EdgeInsets.symmetric(horizontal: 20),
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: const Color(0xFF101B2A),
+                color: _surfaceMain,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                border: Border.all(color: _goldBorder.withValues(alpha: 0.9)),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -223,6 +234,7 @@ class _GamePageState extends State<GamePage> {
                     'Loja entre pisos',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,
+                      color: _goldText,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -230,7 +242,7 @@ class _GamePageState extends State<GamePage> {
                     'Shards disponiveis: ${_controller.shards}',
                     style: Theme.of(
                       context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                    ).textTheme.bodyMedium?.copyWith(color: _goldText),
                   ),
                   const SizedBox(height: 14),
                   Row(
@@ -336,10 +348,10 @@ class _GamePageState extends State<GamePage> {
                               flex: 7,
                               child: Container(
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF0B121B),
+                                  color: _surfaceMain,
                                   borderRadius: BorderRadius.circular(22),
                                   border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.06),
+                                    color: _goldBorder.withValues(alpha: 0.75),
                                   ),
                                 ),
                                 padding: const EdgeInsets.all(12),
