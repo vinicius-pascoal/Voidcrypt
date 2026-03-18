@@ -36,6 +36,11 @@ class GameController extends ChangeNotifier {
   int shards = 0;
   int mapVisualSeed = 0;
   int damageFlashTick = 0;
+  int hitStopTick = 0;
+  int lootParticleTick = 0;
+  int enemyDeathParticleTick = 0;
+  List<Point<int>> lootParticlePositions = const [];
+  List<Point<int>> enemyDeathParticlePositions = const [];
 
   int potions = 0;
   int bombs = 0;
@@ -93,6 +98,8 @@ class GameController extends ChangeNotifier {
     shopFeedbackIsError = false;
     _shopPhaseActive = false;
     telegraphedDamage = {};
+    lootParticlePositions = const [];
+    enemyDeathParticlePositions = const [];
     specialRooms = {};
     _visitedSpecialRooms.clear();
     _loadFloor(resetMessage: 'Run reiniciada. A cripta mudou de forma.');
@@ -124,6 +131,8 @@ class GameController extends ChangeNotifier {
     exit = data.exit;
     mapVisualSeed = _random.nextInt(1 << 30);
     telegraphedDamage = {};
+    lootParticlePositions = const [];
+    enemyDeathParticlePositions = const [];
 
     message = resetMessage ?? 'Piso $floor gerado proceduralmente.';
 
@@ -245,6 +254,23 @@ class GameController extends ChangeNotifier {
     stamina = min(maxStamina, stamina + amount);
   }
 
+  void _triggerHitStop() {
+    hitStopTick += 1;
+  }
+
+  void _emitLootParticles(Point<int> position) {
+    lootParticlePositions = [position];
+    lootParticleTick += 1;
+  }
+
+  void _emitEnemyDeathParticles(List<Point<int>> positions) {
+    if (positions.isEmpty) {
+      return;
+    }
+    enemyDeathParticlePositions = List<Point<int>>.from(positions);
+    enemyDeathParticleTick += 1;
+  }
+
   void _setFacingDirection(int dx, int dy) {
     if (dx == 0 && dy == 0) {
       return;
@@ -275,6 +301,7 @@ class GameController extends ChangeNotifier {
       final wasCritical = _random.nextDouble() < critChance;
       final damage = wasCritical ? 2 : 1;
       final killed = _applyDamageToEnemy(enemyIndex, damage);
+      _triggerHitStop();
       steps++;
 
       if (killed) {
@@ -309,6 +336,7 @@ class GameController extends ChangeNotifier {
     final lootIndex = _lootIndexAt(player);
     if (lootIndex != -1) {
       final drop = loot.removeAt(lootIndex);
+      _emitLootParticles(player);
       final rarityMultiplier = switch (drop.rarity) {
         LootRarity.common => 1,
         LootRarity.rare => 2,
@@ -417,6 +445,7 @@ class GameController extends ChangeNotifier {
       final wasCritical = _random.nextDouble() < critChance;
       final damage = wasCritical ? 3 : 2;
       final killed = _applyDamageToEnemy(targetIndex, damage);
+      _triggerHitStop();
 
       if (killed) {
         message = enemy.isBoss
@@ -477,16 +506,27 @@ class GameController extends ChangeNotifier {
     pendingShopItems = [];
     _shopPhaseActive = false;
     telegraphedDamage = {};
+    lootParticlePositions = const [];
+    enemyDeathParticlePositions = const [];
     specialRooms = {};
     _visitedSpecialRooms.clear();
     _loadFloor(resetMessage: 'Voce caiu. A cripta reiniciou.');
   }
 
-  bool _applyDamageToEnemy(int index, int damage) {
+  bool _applyDamageToEnemy(
+    int index,
+    int damage, {
+    List<Point<int>>? deathCollector,
+  }) {
     final enemy = enemies[index];
     final remaining = enemy.hp - damage;
 
     if (remaining <= 0) {
+      if (deathCollector != null) {
+        deathCollector.add(enemy.position);
+      } else {
+        _emitEnemyDeathParticles([enemy.position]);
+      }
       enemies.removeAt(index);
       return true;
     }
@@ -671,10 +711,19 @@ class GameController extends ChangeNotifier {
 
     targets.sort((a, b) => b.compareTo(a));
     int kills = 0;
+    final deathPositions = <Point<int>>[];
     for (final i in targets) {
-      if (i < enemies.length && _applyDamageToEnemy(i, 2)) {
+      if (i < enemies.length &&
+          _applyDamageToEnemy(i, 2, deathCollector: deathPositions)) {
         kills += 1;
       }
+    }
+
+    if (deathPositions.isNotEmpty) {
+      _emitEnemyDeathParticles(deathPositions);
+    }
+    if (targets.isNotEmpty) {
+      _triggerHitStop();
     }
 
     message = kills > 0

@@ -24,17 +24,15 @@ V
 2. Salas especiais: tesouro, evento, armadilha e altar.
 3. Regras de conectividade para garantir rotas alternativas e menos corredores lineares.
 
+V
 ## 5. Feedback visual
 1. Camera shake leve ao levar dano.
 2. Hit stop curto em ataques para aumentar impacto.
 3. Particulas em coleta de loot e morte de inimigos.
 
+V
 ## 6. UX e qualidade de vida
-3. Opcao canhoto/destro para posicionamento da HUD.
 4. Tela de pause com retomar, reiniciar e sair.
-
-## 7. Metagame e retencao
-1. Desbloqueio de classes: guerreiro, ladino e mago.
 
 ## 8. Menu e apresentacao
 1. Continuar automaticamente da ultima run.

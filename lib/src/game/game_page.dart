@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import 'game_controller.dart';
@@ -221,7 +223,6 @@ class _GamePageState extends State<GamePage> {
     final message = _controller.shopFeedbackMessage;
     final hasFeedback = message.isNotEmpty;
     final isSuccess = hasFeedback && !_controller.shopFeedbackIsError;
-    final isError = hasFeedback && _controller.shopFeedbackIsError;
 
     if (!hasFeedback) {
       return const SizedBox(height: 54);
@@ -516,65 +517,142 @@ class _GamePageState extends State<GamePage> {
               padding: const EdgeInsets.all(14),
               child: Stack(
                 children: [
-                  IgnorePointer(
-                    ignoring: _isPaused,
-                    child: Column(
-                      children: [
-                        _topHud(),
-                        const SizedBox(height: 12),
-                        Expanded(
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 7,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: _surfaceMain,
-                                    borderRadius: BorderRadius.circular(22),
-                                    border: Border.all(
-                                      color: _goldBorder.withValues(
-                                        alpha: 0.75,
+                  TweenAnimationBuilder<double>(
+                    key: ValueKey(
+                      'damage-shake-${_controller.damageFlashTick}',
+                    ),
+                    tween: Tween<double>(begin: 0, end: 1),
+                    duration: const Duration(milliseconds: 280),
+                    curve: Curves.easeOutCubic,
+                    builder: (context, value, child) {
+                      final intensity = 1 - value;
+                      final shakeX = sin(value * pi * 12) * intensity * 13;
+                      final shakeY = cos(value * pi * 14) * intensity * 5.4;
+                      return Transform.translate(
+                        offset: Offset(shakeX, shakeY),
+                        child: child,
+                      );
+                    },
+                    child: IgnorePointer(
+                      ignoring: _isPaused,
+                      child: Column(
+                        children: [
+                          _topHud(),
+                          const SizedBox(height: 12),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 7,
+                                  child: TweenAnimationBuilder<double>(
+                                    key: ValueKey(
+                                      'hit-stop-board-${_controller.hitStopTick}',
+                                    ),
+                                    tween: Tween<double>(begin: 0, end: 1),
+                                    duration: const Duration(milliseconds: 110),
+                                    curve: Curves.easeOut,
+                                    builder: (context, value, child) {
+                                      final compress = (1 - value) * 0.028;
+                                      return Transform.translate(
+                                        offset: Offset(0, (1 - value) * 2.4),
+                                        child: Transform.scale(
+                                          scale: 1 - compress,
+                                          alignment: Alignment.center,
+                                          child: child,
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: _surfaceMain,
+                                        borderRadius: BorderRadius.circular(22),
+                                        border: Border.all(
+                                          color: _goldBorder.withValues(
+                                            alpha: 0.75,
+                                          ),
+                                        ),
+                                      ),
+                                      padding: const EdgeInsets.all(12),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(18),
+                                        child: SizedBox.expand(
+                                          child: GameBoard(
+                                            controller: _controller,
+                                          ),
+                                        ),
                                       ),
                                     ),
                                   ),
-                                  padding: const EdgeInsets.all(12),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(18),
-                                    child: SizedBox.expand(
-                                      child: GameBoard(controller: _controller),
-                                    ),
+                                ),
+                                const SizedBox(width: 14),
+                                Expanded(
+                                  flex: 3,
+                                  child: ControlPanel(
+                                    onUp: () => _controller.movePlayer(0, -1),
+                                    onDown: () => _controller.movePlayer(0, 1),
+                                    onLeft: () => _controller.movePlayer(-1, 0),
+                                    onRight: () => _controller.movePlayer(1, 0),
+                                    onAttack: _controller.attack,
+                                    onWait: _controller.waitTurn,
+                                    potions: _controller.potions,
+                                    bombs: _controller.bombs,
+                                    temporalShields:
+                                        _controller.temporalShields,
+                                    onUsePotion: _controller.usePotion,
+                                    onUseBomb: _controller.useBomb,
+                                    onUseTemporalShield:
+                                        _controller.useTemporalShield,
                                   ),
                                 ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                flex: 3,
-                                child: ControlPanel(
-                                  onUp: () => _controller.movePlayer(0, -1),
-                                  onDown: () => _controller.movePlayer(0, 1),
-                                  onLeft: () => _controller.movePlayer(-1, 0),
-                                  onRight: () => _controller.movePlayer(1, 0),
-                                  onAttack: _controller.attack,
-                                  onWait: _controller.waitTurn,
-                                  potions: _controller.potions,
-                                  bombs: _controller.bombs,
-                                  temporalShields: _controller.temporalShields,
-                                  onUsePotion: _controller.usePotion,
-                                  onUseBomb: _controller.useBomb,
-                                  onUseTemporalShield:
-                                      _controller.useTemporalShield,
-                                ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                   if (_controller.isAwaitingRewardChoice)
                     _rewardOverlay(context),
                   if (_controller.isAwaitingShopChoice) _shopOverlay(context),
                   if (_isPaused) _pauseOverlay(context),
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: TweenAnimationBuilder<double>(
+                        key: ValueKey(
+                          'damage-flash-${_controller.damageFlashTick}',
+                        ),
+                        tween: Tween<double>(begin: 0, end: 1),
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, value, child) {
+                          final opacity = (1 - value) * 0.23;
+                          return Container(
+                            color: const Color(
+                              0xFFFF425E,
+                            ).withValues(alpha: opacity),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: TweenAnimationBuilder<double>(
+                        key: ValueKey(
+                          'hit-stop-flash-${_controller.hitStopTick}',
+                        ),
+                        tween: Tween<double>(begin: 0, end: 1),
+                        duration: const Duration(milliseconds: 85),
+                        curve: Curves.easeOut,
+                        builder: (context, value, child) {
+                          final opacity = (1 - value) * 0.16;
+                          return Container(
+                            color: Colors.white.withValues(alpha: opacity),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
                 ],
               ),
             );

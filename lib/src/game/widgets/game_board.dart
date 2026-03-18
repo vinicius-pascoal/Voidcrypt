@@ -238,21 +238,6 @@ class GameBoard extends StatelessWidget {
     }
   }
 
-  Color _enemyColor(EnemyType type) {
-    switch (type) {
-      case EnemyType.pursuer:
-        return const Color(0xFFC24BFF);
-      case EnemyType.archer:
-        return const Color(0xFF69A8FF);
-      case EnemyType.tank:
-        return const Color(0xFF5DBA7B);
-      case EnemyType.summoner:
-        return const Color(0xFFE6B85A);
-      case EnemyType.boss:
-        return const Color(0xFFFF845A);
-    }
-  }
-
   IconData _specialRoomIcon(SpecialRoomType type) {
     switch (type) {
       case SpecialRoomType.treasure:
@@ -303,6 +288,106 @@ class GameBoard extends StatelessWidget {
     }
 
     return false;
+  }
+
+  Widget _buildParticleBurst({
+    required int tick,
+    required Color color,
+    required double cellWidth,
+    required double cellHeight,
+    required double spread,
+    required int count,
+  }) {
+    final baseSize = min(cellWidth, cellHeight) * 0.13;
+
+    return IgnorePointer(
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          for (int i = 0; i < count; i++)
+            Positioned.fill(
+              child: TweenAnimationBuilder<double>(
+                key: ValueKey('particle-$tick-$i-${color.value}'),
+                tween: Tween<double>(begin: 0, end: 1),
+                duration: const Duration(milliseconds: 380),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) {
+                  final angle = (i * 0.95) + (tick * 0.013);
+                  final distance = spread * value;
+                  final dx = cos(angle) * distance;
+                  final dy = sin(angle) * distance;
+                  final size = baseSize * (1 - (value * 0.48));
+
+                  return Center(
+                    child: Transform.translate(
+                      offset: Offset(dx, dy),
+                      child: Container(
+                        width: size,
+                        height: size,
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 1 - value),
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: color.withValues(alpha: (1 - value) * 0.7),
+                              blurRadius: 7,
+                              spreadRadius: 1,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShockwave({
+    required int tick,
+    required Color color,
+    required double cellWidth,
+    required double cellHeight,
+  }) {
+    final maxRadius = min(cellWidth, cellHeight) * 1.15;
+
+    return IgnorePointer(
+      child: TweenAnimationBuilder<double>(
+        key: ValueKey('shockwave-$tick-${color.value}'),
+        tween: Tween<double>(begin: 0, end: 1),
+        duration: const Duration(milliseconds: 340),
+        curve: Curves.easeOutCubic,
+        builder: (context, value, child) {
+          final radius = maxRadius * (0.3 + (value * 0.8));
+          final stroke = (2.2 - (value * 1.2)).clamp(0.8, 2.2);
+          final alpha = (1 - value) * 0.88;
+
+          return Center(
+            child: Container(
+              width: radius,
+              height: radius,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: color.withValues(alpha: alpha),
+                  width: stroke,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: color.withValues(alpha: alpha * 0.4),
+                    blurRadius: 8,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -531,11 +616,7 @@ class GameBoard extends StatelessWidget {
         for (final enemy in controller.enemies) {
           final left = (enemy.position.x - startCol) * cellWidth;
           final top = (enemy.position.y - startRow) * cellHeight;
-          final hasEnemySprite = true;
-          final enemySize = hasEnemySprite
-              ? pursuerSpriteBaseSize
-              : (enemy.isBoss ? iconSize * 1.2 : iconSize);
-          final enemyColor = _enemyColor(enemy.type);
+          final enemySize = pursuerSpriteBaseSize;
 
           children.add(
             AnimatedPositioned(
@@ -552,36 +633,29 @@ class GameBoard extends StatelessWidget {
                   child: Container(
                     width: enemySize,
                     height: enemySize,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      color: hasEnemySprite ? Colors.transparent : enemyColor,
+                      color: Colors.transparent,
                     ),
                     child: Stack(
                       alignment: Alignment.center,
                       clipBehavior: Clip.none,
                       children: [
-                        if (hasEnemySprite)
-                          Transform.scale(
-                            scale: _enemySpriteScale,
-                            child: Image.asset(
-                              _enemySpriteAssetPath(enemy),
-                              fit: BoxFit.contain,
-                              filterQuality: FilterQuality.high,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Icon(
-                                  _enemyIcon(enemy.type),
-                                  size: enemySize * 0.72,
-                                  color: Colors.white,
-                                );
-                              },
-                            ),
-                          )
-                        else
-                          Icon(
-                            _enemyIcon(enemy.type),
-                            size: enemySize * 0.72,
-                            color: Colors.white,
+                        Transform.scale(
+                          scale: _enemySpriteScale,
+                          child: Image.asset(
+                            _enemySpriteAssetPath(enemy),
+                            fit: BoxFit.contain,
+                            filterQuality: FilterQuality.high,
+                            errorBuilder: (context, error, stackTrace) {
+                              return Icon(
+                                _enemyIcon(enemy.type),
+                                size: enemySize * 0.72,
+                                color: Colors.white,
+                              );
+                            },
                           ),
+                        ),
                         if (enemy.isBoss)
                           Positioned(
                             top: 2,
@@ -597,6 +671,82 @@ class GameBoard extends StatelessWidget {
                     ),
                   ),
                 ),
+              ),
+            ),
+          );
+        }
+
+        for (final pos in controller.lootParticlePositions) {
+          final localX = pos.x - startCol;
+          final localY = pos.y - startRow;
+          if (localX < 0 ||
+              localY < 0 ||
+              localX >= GameController.visibleCols ||
+              localY >= GameController.visibleRows) {
+            continue;
+          }
+
+          children.add(
+            Positioned(
+              left: localX * cellWidth,
+              top: localY * cellHeight,
+              width: cellWidth,
+              height: cellHeight,
+              child: Stack(
+                children: [
+                  _buildShockwave(
+                    tick: controller.lootParticleTick,
+                    color: const Color(0xFF8BE7FF),
+                    cellWidth: cellWidth,
+                    cellHeight: cellHeight,
+                  ),
+                  _buildParticleBurst(
+                    tick: controller.lootParticleTick,
+                    color: const Color(0xFF8BE7FF),
+                    cellWidth: cellWidth,
+                    cellHeight: cellHeight,
+                    spread: min(cellWidth, cellHeight) * 0.62,
+                    count: 8,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        for (final pos in controller.enemyDeathParticlePositions) {
+          final localX = pos.x - startCol;
+          final localY = pos.y - startRow;
+          if (localX < 0 ||
+              localY < 0 ||
+              localX >= GameController.visibleCols ||
+              localY >= GameController.visibleRows) {
+            continue;
+          }
+
+          children.add(
+            Positioned(
+              left: localX * cellWidth,
+              top: localY * cellHeight,
+              width: cellWidth,
+              height: cellHeight,
+              child: Stack(
+                children: [
+                  _buildShockwave(
+                    tick: controller.enemyDeathParticleTick,
+                    color: const Color(0xFFFFC06A),
+                    cellWidth: cellWidth,
+                    cellHeight: cellHeight,
+                  ),
+                  _buildParticleBurst(
+                    tick: controller.enemyDeathParticleTick,
+                    color: const Color(0xFFFFC06A),
+                    cellWidth: cellWidth,
+                    cellHeight: cellHeight,
+                    spread: min(cellWidth, cellHeight) * 0.74,
+                    count: 10,
+                  ),
+                ],
               ),
             ),
           );
