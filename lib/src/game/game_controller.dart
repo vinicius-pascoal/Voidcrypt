@@ -717,6 +717,90 @@ class GameController extends ChangeNotifier {
     return true;
   }
 
+  int _visionRangeFor(EnemyType type) {
+    switch (type) {
+      case EnemyType.pursuer:
+        return 6;
+      case EnemyType.archer:
+        return 7;
+      case EnemyType.tank:
+        return 5;
+      case EnemyType.summoner:
+        return 6;
+      case EnemyType.boss:
+        return 8;
+    }
+  }
+
+  bool _hasLineOfSightAnyDirection(Point<int> from, Point<int> to) {
+    int x0 = from.x;
+    int y0 = from.y;
+    final int x1 = to.x;
+    final int y1 = to.y;
+
+    final int dx = (x1 - x0).abs();
+    final int sx = x0 < x1 ? 1 : -1;
+    final int dy = -(y1 - y0).abs();
+    final int sy = y0 < y1 ? 1 : -1;
+    int err = dx + dy;
+
+    while (true) {
+      if (x0 == x1 && y0 == y1) {
+        return true;
+      }
+
+      final e2 = 2 * err;
+      if (e2 >= dy) {
+        err += dy;
+        x0 += sx;
+      }
+      if (e2 <= dx) {
+        err += dx;
+        y0 += sy;
+      }
+
+      if (x0 == x1 && y0 == y1) {
+        return true;
+      }
+
+      if (_isWall(Point<int>(x0, y0))) {
+        return false;
+      }
+    }
+  }
+
+  bool _enemyCanSeePlayer(EnemyEntity enemy) {
+    final distance =
+        (player.x - enemy.position.x).abs() +
+        (player.y - enemy.position.y).abs();
+
+    if (distance > _visionRangeFor(enemy.type)) {
+      return false;
+    }
+
+    return _hasLineOfSightAnyDirection(enemy.position, player);
+  }
+
+  Point<int> _pickPatrolDestination(
+    EnemyEntity enemy,
+    List<Point<int>> occupied,
+  ) {
+    final candidates = <Point<int>>[
+      Point<int>(enemy.position.x + 1, enemy.position.y),
+      Point<int>(enemy.position.x - 1, enemy.position.y),
+      Point<int>(enemy.position.x, enemy.position.y + 1),
+      Point<int>(enemy.position.x, enemy.position.y - 1),
+    ]..shuffle(_random);
+
+    for (final candidate in candidates) {
+      if (_canEnemyMoveTo(candidate, occupied)) {
+        return candidate;
+      }
+    }
+
+    return enemy.position;
+  }
+
   Point<int> _pickChaseDestination(
     EnemyEntity enemy,
     List<Point<int>> occupied,
@@ -876,33 +960,45 @@ class GameController extends ChangeNotifier {
     for (final enemy in enemies) {
       EnemyEntity updated = enemy;
       Point<int> destination = enemy.position;
+      final canSeePlayer = _enemyCanSeePlayer(enemy);
 
       switch (enemy.type) {
         case EnemyType.pursuer:
         case EnemyType.boss:
-          destination = _pickChaseDestination(enemy, occupied);
+          destination = canSeePlayer
+              ? _pickChaseDestination(enemy, occupied)
+              : _pickPatrolDestination(enemy, occupied);
           break;
         case EnemyType.archer:
-          destination = _pickArcherDestination(enemy, occupied);
+          destination = canSeePlayer
+              ? _pickArcherDestination(enemy, occupied)
+              : _pickPatrolDestination(enemy, occupied);
           break;
         case EnemyType.tank:
           if (enemy.aiState > 0) {
             updated = updated.copyWith(aiState: enemy.aiState - 1);
           } else {
-            destination = _pickChaseDestination(enemy, occupied);
-            updated = updated.copyWith(aiState: 1);
+            destination = canSeePlayer
+                ? _pickChaseDestination(enemy, occupied)
+                : _pickPatrolDestination(enemy, occupied);
+            updated = updated.copyWith(aiState: canSeePlayer ? 1 : 0);
           }
           break;
         case EnemyType.summoner:
-          if (enemy.aiState >= 2) {
+          if (canSeePlayer && enemy.aiState >= 2) {
             final summon = _trySummon(enemy, occupied);
             if (summon != null) {
               spawned.add(summon);
             }
             updated = updated.copyWith(aiState: 0);
           } else {
-            updated = updated.copyWith(aiState: enemy.aiState + 1);
-            destination = _pickArcherDestination(enemy, occupied);
+            if (canSeePlayer) {
+              updated = updated.copyWith(aiState: enemy.aiState + 1);
+              destination = _pickArcherDestination(enemy, occupied);
+            } else {
+              updated = updated.copyWith(aiState: max(0, enemy.aiState - 1));
+              destination = _pickPatrolDestination(enemy, occupied);
+            }
           }
           break;
       }
