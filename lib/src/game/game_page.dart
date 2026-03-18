@@ -9,7 +9,14 @@ import 'widgets/control_panel.dart';
 import 'widgets/game_board.dart';
 
 class GamePage extends StatefulWidget {
-  const GamePage({super.key});
+  final GameDifficulty difficulty;
+  final RunSnapshot? resumeSnapshot;
+
+  const GamePage({
+    super.key,
+    this.difficulty = GameDifficulty.normal,
+    this.resumeSnapshot,
+  });
 
   @override
   State<GamePage> createState() => _GamePageState();
@@ -78,6 +85,7 @@ class _GamePageState extends State<GamePage> {
 
   Widget _topHud() {
     final canPause =
+        !_controller.isGameOver &&
         !_controller.isAwaitingRewardChoice &&
         !_controller.isAwaitingShopChoice;
 
@@ -185,10 +193,148 @@ class _GamePageState extends State<GamePage> {
     );
   }
 
+  String _difficultyLabel(GameDifficulty difficulty) {
+    switch (difficulty) {
+      case GameDifficulty.normal:
+        return 'Normal';
+      case GameDifficulty.hard:
+        return 'Hard';
+      case GameDifficulty.nightmare:
+        return 'Nightmare';
+    }
+  }
+
+  String _formatDuration(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  Widget _summaryRow(String label, String value) {
+    return Row(
+      children: [
+        Expanded(
+          child: Text(label, style: const TextStyle(color: Color(0xFFE8D3AE))),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Color(0xFFFFF3DC),
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _gameOverOverlay(BuildContext context) {
+    final summary = _controller.lastRunSummary;
+    if (summary == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Positioned.fill(
+      child: Container(
+        color: const Color(0xFF0D0817).withValues(alpha: 0.82),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompactHeight = constraints.maxHeight < 520;
+
+            return Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: 560,
+                  maxHeight: constraints.maxHeight * 0.88,
+                ),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: EdgeInsets.all(isCompactHeight ? 14 : 20),
+                  decoration: BoxDecoration(
+                    color: _surfaceMain,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: _goldBorder.withValues(alpha: 0.9),
+                    ),
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'Game Over',
+                          textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(
+                                fontSize: isCompactHeight ? 30 : null,
+                                fontWeight: FontWeight.w800,
+                                color: _goldText,
+                              ),
+                        ),
+                        SizedBox(height: isCompactHeight ? 8 : 12),
+                        _summaryRow(
+                          'Dificuldade',
+                          _difficultyLabel(summary.difficulty),
+                        ),
+                        const SizedBox(height: 6),
+                        _summaryRow('Piso alcancado', '${summary.floor}'),
+                        const SizedBox(height: 6),
+                        _summaryRow('Kills', '${summary.kills}'),
+                        const SizedBox(height: 6),
+                        _summaryRow('Tempo', _formatDuration(summary.duration)),
+                        const SizedBox(height: 6),
+                        _summaryRow('Loot coletado', '${summary.loot}'),
+                        const SizedBox(height: 6),
+                        _summaryRow('Shards finais', '${summary.shards}'),
+                        SizedBox(height: isCompactHeight ? 12 : 16),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton.icon(
+                                onPressed: _controller.startNewRun,
+                                icon: const Icon(Icons.refresh_rounded),
+                                label: const Text('Nova Run'),
+                                style: FilledButton.styleFrom(
+                                  minimumSize: Size.fromHeight(
+                                    isCompactHeight ? 42 : 48,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: OutlinedButton.icon(
+                                onPressed: _exitFromPause,
+                                icon: const Icon(Icons.exit_to_app_rounded),
+                                label: const Text('Voltar ao Menu'),
+                                style: OutlinedButton.styleFrom(
+                                  minimumSize: Size.fromHeight(
+                                    isCompactHeight ? 42 : 48,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
-    _controller = GameController()..start();
+    _controller = GameController(
+      difficulty: widget.resumeSnapshot?.difficulty ?? widget.difficulty,
+      resumeSnapshot: widget.resumeSnapshot,
+    )..start();
   }
 
   @override
@@ -534,7 +680,7 @@ class _GamePageState extends State<GamePage> {
                       );
                     },
                     child: IgnorePointer(
-                      ignoring: _isPaused,
+                      ignoring: _isPaused || _controller.isGameOver,
                       child: Column(
                         children: [
                           _topHud(),
@@ -614,6 +760,7 @@ class _GamePageState extends State<GamePage> {
                   if (_controller.isAwaitingRewardChoice)
                     _rewardOverlay(context),
                   if (_controller.isAwaitingShopChoice) _shopOverlay(context),
+                  if (_controller.isGameOver) _gameOverOverlay(context),
                   if (_isPaused) _pauseOverlay(context),
                   Positioned.fill(
                     child: IgnorePointer(

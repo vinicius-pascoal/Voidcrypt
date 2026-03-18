@@ -122,7 +122,7 @@ class GameBoard extends StatelessWidget {
       }
     }
 
-    final key = '${dx},${dy}';
+    final key = '$dx,$dy';
     return _pursuerSpriteByDirection[key] ?? 'assets/enemies/pursuer/south.png';
   }
 
@@ -165,7 +165,7 @@ class GameBoard extends StatelessWidget {
       }
     }
 
-    return '${dx},${dy}';
+    return '$dx,$dy';
   }
 
   String _enemySpriteAssetPath(EnemyEntity enemy) {
@@ -307,7 +307,7 @@ class GameBoard extends StatelessWidget {
           for (int i = 0; i < count; i++)
             Positioned.fill(
               child: TweenAnimationBuilder<double>(
-                key: ValueKey('particle-$tick-$i-${color.value}'),
+                key: ValueKey('particle-$tick-$i-${color.toARGB32()}'),
                 tween: Tween<double>(begin: 0, end: 1),
                 duration: const Duration(milliseconds: 380),
                 curve: Curves.easeOutCubic,
@@ -356,7 +356,7 @@ class GameBoard extends StatelessWidget {
 
     return IgnorePointer(
       child: TweenAnimationBuilder<double>(
-        key: ValueKey('shockwave-$tick-${color.value}'),
+        key: ValueKey('shockwave-$tick-${color.toARGB32()}'),
         tween: Tween<double>(begin: 0, end: 1),
         duration: const Duration(milliseconds: 340),
         curve: Curves.easeOutCubic,

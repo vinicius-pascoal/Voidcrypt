@@ -1,13 +1,16 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'dungeon_generator.dart';
 import 'models.dart';
 
 class GameController extends ChangeNotifier {
+  static const String _savedRunKey = 'voidcrypt_saved_run_v1';
   static const int visibleCols = 12;
   static const int visibleRows = 7;
   static const int mapWidth = 36;
@@ -59,14 +62,52 @@ class GameController extends ChangeNotifier {
   List<ShopItem> pendingShopItems = [];
   bool _shopPhaseActive = false;
 
+  final RunSnapshot? _resumeSnapshot;
+  final GameDifficulty difficulty;
+  DateTime _runStartedAt = DateTime.now();
+  int kills = 0;
+  int lootCollected = 0;
+  bool _isGameOver = false;
+  RunSummary? lastRunSummary;
+
   Timer? _animationResetTimer;
   bool _busy = false;
+  bool _isPersisting = false;
 
   bool get isBusy => _busy;
   bool get isAwaitingRewardChoice => pendingRewards.isNotEmpty;
   bool get isAwaitingShopChoice => _shopPhaseActive;
+  bool get isGameOver => _isGameOver;
   int get facingDx => _facingDx;
   int get facingDy => _facingDy;
+
+  GameController({
+    this.difficulty = GameDifficulty.normal,
+    RunSnapshot? resumeSnapshot,
+  }) : _resumeSnapshot = resumeSnapshot;
+
+  static Future<void> clearSavedRun() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_savedRunKey);
+  }
+
+  static Future<RunSnapshot?> loadSavedRun() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_savedRunKey);
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) {
+        return null;
+      }
+      return _snapshotFromJson(decoded);
+    } catch (_) {
+      return null;
+    }
+  }
 
   String shopFeedbackMessage = '';
   bool shopFeedbackIsError = false;
@@ -78,9 +119,65 @@ class GameController extends ChangeNotifier {
       (0.10 * activeRelics.where((r) => r == RelicType.criticalEdge).length)
           .clamp(0.0, 0.6);
 
+  int _baseMaxHpByDifficulty() {
+    switch (difficulty) {
+      case GameDifficulty.normal:
+        return 5;
+      case GameDifficulty.hard:
+        return 4;
+      case GameDifficulty.nightmare:
+        return 4;
+    }
+  }
+
+  int _baseMaxStaminaByDifficulty() {
+    switch (difficulty) {
+      case GameDifficulty.normal:
+        return 4;
+      case GameDifficulty.hard:
+        return 4;
+      case GameDifficulty.nightmare:
+        return 3;
+    }
+  }
+
+  int _enemyHpBonusByDifficulty() {
+    switch (difficulty) {
+      case GameDifficulty.normal:
+        return 0;
+      case GameDifficulty.hard:
+        return 1;
+      case GameDifficulty.nightmare:
+        return 2;
+    }
+  }
+
+  int _incomingDamageBonusByDifficulty() {
+    switch (difficulty) {
+      case GameDifficulty.normal:
+        return 0;
+      case GameDifficulty.hard:
+        return 1;
+      case GameDifficulty.nightmare:
+        return 2;
+    }
+  }
+
+  void _applyDifficultyToEnemies() {
+    final hpBonus = _enemyHpBonusByDifficulty();
+    if (hpBonus <= 0) {
+      return;
+    }
+
+    enemies = [
+      for (final enemy in enemies)
+        enemy.copyWith(hp: enemy.hp + hpBonus, maxHp: enemy.maxHp + hpBonus),
+    ];
+  }
+
   void startNewRun() {
-    hp = 5;
-    maxHp = 5;
+    maxHp = _baseMaxHpByDifficulty();
+    hp = maxHp;
     steps = 0;
     floor = 1;
     shards = 0;
@@ -88,9 +185,17 @@ class GameController extends ChangeNotifier {
     bombs = 0;
     temporalShields = 0;
     shieldTurns = 0;
+    maxStamina = _baseMaxStaminaByDifficulty();
     stamina = maxStamina;
     _facingDx = 0;
     _facingDy = 1;
+    damageFlashTick = 0;
+    hitStopTick = 0;
+    kills = 0;
+    lootCollected = 0;
+    _isGameOver = false;
+    lastRunSummary = null;
+    _runStartedAt = DateTime.now();
     activeRelics.clear();
     pendingRewards = [];
     pendingShopItems = [];
@@ -106,6 +211,12 @@ class GameController extends ChangeNotifier {
   }
 
   void start() {
+    if (_resumeSnapshot != null) {
+      _restoreFromSnapshot(_resumeSnapshot);
+      message = 'Run retomada no piso $floor.';
+      notifyListeners();
+      return;
+    }
     _loadFloor(resetMessage: 'Entre em Voidcrypt.');
   }
 
@@ -120,6 +231,7 @@ class GameController extends ChangeNotifier {
     player = data.playerStart;
     previousPlayer = player;
     enemies = List<EnemyEntity>.from(data.enemies);
+    _applyDifficultyToEnemies();
     previousEnemyPositions = {
       for (final enemy in enemies) enemy.id: enemy.position,
     };
@@ -280,7 +392,9 @@ class GameController extends ChangeNotifier {
   }
 
   void movePlayer(int dx, int dy) {
-    if (_busy || isAwaitingRewardChoice || isAwaitingShopChoice) return;
+    if (_busy || isGameOver || isAwaitingRewardChoice || isAwaitingShopChoice) {
+      return;
+    }
 
     _setFacingDirection(dx, dy);
 
@@ -344,6 +458,7 @@ class GameController extends ChangeNotifier {
       };
 
       if (drop.type == LootType.essence) {
+        lootCollected += 1;
         final healAmount = rarityMultiplier;
         hp = min(maxHp, hp + healAmount);
         message = switch (drop.rarity) {
@@ -352,6 +467,7 @@ class GameController extends ChangeNotifier {
           LootRarity.epic => 'Essencia epica: +3 HP.',
         };
       } else {
+        lootCollected += 1;
         final shardGain = rarityMultiplier;
         shards += shardGain;
         message = switch (drop.rarity) {
@@ -393,7 +509,9 @@ class GameController extends ChangeNotifier {
   }
 
   void attack() {
-    if (_busy || isAwaitingRewardChoice || isAwaitingShopChoice) return;
+    if (_busy || isGameOver || isAwaitingRewardChoice || isAwaitingShopChoice) {
+      return;
+    }
 
     if (stamina < 2) {
       message = 'Stamina insuficiente para ataque forte.';
@@ -473,7 +591,9 @@ class GameController extends ChangeNotifier {
   }
 
   void waitTurn() {
-    if (_busy || isAwaitingRewardChoice || isAwaitingShopChoice) return;
+    if (_busy || isGameOver || isAwaitingRewardChoice || isAwaitingShopChoice) {
+      return;
+    }
 
     _busy = true;
     _captureAnimationOrigins();
@@ -492,25 +612,24 @@ class GameController extends ChangeNotifier {
       return;
     }
 
-    floor = 1;
-    hp = maxHp;
-    steps = 0;
-    shards = 0;
-    potions = 0;
-    bombs = 0;
-    temporalShields = 0;
-    shieldTurns = 0;
-    stamina = maxStamina;
-    activeRelics.clear();
+    _isGameOver = true;
+    _busy = false;
     pendingRewards = [];
     pendingShopItems = [];
     _shopPhaseActive = false;
     telegraphedDamage = {};
-    lootParticlePositions = const [];
-    enemyDeathParticlePositions = const [];
-    specialRooms = {};
-    _visitedSpecialRooms.clear();
-    _loadFloor(resetMessage: 'Voce caiu. A cripta reiniciou.');
+    shieldTurns = 0;
+    message = 'Voce caiu no Voidcrypt.';
+    lastRunSummary = RunSummary(
+      difficulty: difficulty,
+      floor: floor,
+      kills: kills,
+      loot: lootCollected,
+      shards: shards,
+      steps: steps,
+      duration: DateTime.now().difference(_runStartedAt),
+    );
+    unawaited(clearSavedRun());
   }
 
   bool _applyDamageToEnemy(
@@ -522,6 +641,7 @@ class GameController extends ChangeNotifier {
     final remaining = enemy.hp - damage;
 
     if (remaining <= 0) {
+      kills += 1;
       if (deathCollector != null) {
         deathCollector.add(enemy.position);
       } else {
@@ -659,7 +779,9 @@ class GameController extends ChangeNotifier {
   }
 
   void usePotion() {
-    if (_busy || isAwaitingRewardChoice || isAwaitingShopChoice) return;
+    if (_busy || isGameOver || isAwaitingRewardChoice || isAwaitingShopChoice) {
+      return;
+    }
     if (potions <= 0) {
       message = 'Sem pocoes no inventario.';
       notifyListeners();
@@ -686,7 +808,9 @@ class GameController extends ChangeNotifier {
   }
 
   void useBomb() {
-    if (_busy || isAwaitingRewardChoice || isAwaitingShopChoice) return;
+    if (_busy || isGameOver || isAwaitingRewardChoice || isAwaitingShopChoice) {
+      return;
+    }
     if (bombs <= 0) {
       message = 'Sem bombas no inventario.';
       notifyListeners();
@@ -738,7 +862,9 @@ class GameController extends ChangeNotifier {
   }
 
   void useTemporalShield() {
-    if (_busy || isAwaitingRewardChoice || isAwaitingShopChoice) return;
+    if (_busy || isGameOver || isAwaitingRewardChoice || isAwaitingShopChoice) {
+      return;
+    }
     if (temporalShields <= 0) {
       message = 'Sem escudos temporais no inventario.';
       notifyListeners();
@@ -956,11 +1082,12 @@ class GameController extends ChangeNotifier {
     for (final cell in candidates) {
       if (_canEnemyMoveTo(cell, occupied)) {
         final id = enemies.fold<int>(0, (m, e) => max(m, e.id)) + 1;
+        final hpBonus = _enemyHpBonusByDifficulty();
         final summoned = EnemyEntity(
           id: id,
           position: cell,
-          hp: 1,
-          maxHp: 1,
+          hp: 1 + hpBonus,
+          maxHp: 1 + hpBonus,
           type: EnemyType.pursuer,
         );
         occupied.add(cell);
@@ -976,9 +1103,12 @@ class GameController extends ChangeNotifier {
     if (enemies.isEmpty && telegraphedDamage.isEmpty) return;
 
     final rawIncomingDamage = telegraphedDamage[player] ?? 0;
+    final tunedDamage = rawIncomingDamage > 0
+        ? rawIncomingDamage + _incomingDamageBonusByDifficulty()
+        : 0;
     final incomingDamage = shieldTurns > 0
-        ? max(0, rawIncomingDamage - 1)
-        : rawIncomingDamage;
+        ? max(0, tunedDamage - 1)
+        : tunedDamage;
     bool playerWasHit = false;
 
     if (incomingDamage > 0) {
@@ -1135,6 +1265,332 @@ class GameController extends ChangeNotifier {
     }
 
     telegraphedDamage = next;
+  }
+
+  static Point<int> _pointFromJson(Map<String, dynamic> json) {
+    return Point<int>((json['x'] as num).toInt(), (json['y'] as num).toInt());
+  }
+
+  static Map<String, dynamic> _pointToJson(Point<int> point) {
+    return {'x': point.x, 'y': point.y};
+  }
+
+  static RewardOption _rewardFromJson(Map<String, dynamic> json) {
+    return RewardOption(
+      relic: RelicType.values[(json['relic'] as num).toInt()],
+      title: json['title'] as String,
+      description: json['description'] as String,
+    );
+  }
+
+  static ShopItem _shopItemFromJson(Map<String, dynamic> json) {
+    return ShopItem(
+      consumable: ConsumableType.values[(json['consumable'] as num).toInt()],
+      cost: (json['cost'] as num).toInt(),
+      title: json['title'] as String,
+      description: json['description'] as String,
+    );
+  }
+
+  static RunSnapshot _snapshotFromJson(Map<String, dynamic> json) {
+    final specialRooms = <Point<int>, SpecialRoomType>{};
+    final rawSpecialRooms =
+        (json['specialRooms'] as List<dynamic>? ?? const []);
+    for (final raw in rawSpecialRooms) {
+      final item = raw as Map<String, dynamic>;
+      specialRooms[_pointFromJson(item)] =
+          SpecialRoomType.values[(item['type'] as num).toInt()];
+    }
+
+    final visitedSpecial = <Point<int>>{};
+    final rawVisited =
+        (json['visitedSpecialRooms'] as List<dynamic>? ?? const []);
+    for (final raw in rawVisited) {
+      visitedSpecial.add(_pointFromJson(raw as Map<String, dynamic>));
+    }
+
+    return RunSnapshot(
+      difficulty: GameDifficultyCodec.fromStorageKey(
+        json['difficulty'] as String?,
+      ),
+      map: [
+        for (final row in (json['map'] as List<dynamic>))
+          [for (final value in (row as List<dynamic>)) (value as num).toInt()],
+      ],
+      player: _pointFromJson(json['player'] as Map<String, dynamic>),
+      exit: _pointFromJson(json['exit'] as Map<String, dynamic>),
+      enemies: [
+        for (final raw in (json['enemies'] as List<dynamic>? ?? const []))
+          EnemyEntity(
+            id: ((raw as Map<String, dynamic>)['id'] as num).toInt(),
+            position: _pointFromJson(raw['position'] as Map<String, dynamic>),
+            hp: (raw['hp'] as num).toInt(),
+            maxHp: (raw['maxHp'] as num).toInt(),
+            isBoss: raw['isBoss'] as bool? ?? false,
+            type: EnemyType.values[(raw['type'] as num).toInt()],
+            aiState: (raw['aiState'] as num?)?.toInt() ?? 0,
+          ),
+      ],
+      loot: [
+        for (final raw in (json['loot'] as List<dynamic>? ?? const []))
+          LootDrop(
+            id: ((raw as Map<String, dynamic>)['id'] as num).toInt(),
+            type: LootType.values[(raw['type'] as num).toInt()],
+            rarity: LootRarity.values[(raw['rarity'] as num).toInt()],
+            position: _pointFromJson(raw['position'] as Map<String, dynamic>),
+          ),
+      ],
+      specialRooms: specialRooms,
+      visitedSpecialRooms: visitedSpecial,
+      hp: (json['hp'] as num).toInt(),
+      maxHp: (json['maxHp'] as num).toInt(),
+      steps: (json['steps'] as num).toInt(),
+      floor: (json['floor'] as num).toInt(),
+      shards: (json['shards'] as num).toInt(),
+      mapVisualSeed: (json['mapVisualSeed'] as num).toInt(),
+      damageFlashTick: (json['damageFlashTick'] as num?)?.toInt() ?? 0,
+      hitStopTick: (json['hitStopTick'] as num?)?.toInt() ?? 0,
+      stamina: (json['stamina'] as num).toInt(),
+      maxStamina: (json['maxStamina'] as num).toInt(),
+      facingDx: (json['facingDx'] as num?)?.toInt() ?? 0,
+      facingDy: (json['facingDy'] as num?)?.toInt() ?? 1,
+      potions: (json['potions'] as num).toInt(),
+      bombs: (json['bombs'] as num).toInt(),
+      temporalShields: (json['temporalShields'] as num).toInt(),
+      shieldTurns: (json['shieldTurns'] as num).toInt(),
+      message: json['message'] as String? ?? '',
+      activeRelics: [
+        for (final raw in (json['activeRelics'] as List<dynamic>? ?? const []))
+          RelicType.values[(raw as num).toInt()],
+      ],
+      pendingRewards: [
+        for (final raw
+            in (json['pendingRewards'] as List<dynamic>? ?? const []))
+          _rewardFromJson(raw as Map<String, dynamic>),
+      ],
+      pendingShopItems: [
+        for (final raw
+            in (json['pendingShopItems'] as List<dynamic>? ?? const []))
+          _shopItemFromJson(raw as Map<String, dynamic>),
+      ],
+      shopPhaseActive: json['shopPhaseActive'] as bool? ?? false,
+      shopFeedbackMessage: json['shopFeedbackMessage'] as String? ?? '',
+      shopFeedbackIsError: json['shopFeedbackIsError'] as bool? ?? false,
+      kills: (json['kills'] as num?)?.toInt() ?? 0,
+      lootCollected: (json['lootCollected'] as num?)?.toInt() ?? 0,
+      runStartedAtEpochMs:
+          (json['runStartedAtEpochMs'] as num?)?.toInt() ??
+          DateTime.now().millisecondsSinceEpoch,
+    );
+  }
+
+  RunSnapshot _buildSnapshot() {
+    return RunSnapshot(
+      difficulty: difficulty,
+      map: [
+        for (final row in map) [for (final tile in row) tile.index],
+      ],
+      player: player,
+      exit: exit,
+      enemies: List<EnemyEntity>.from(enemies),
+      loot: List<LootDrop>.from(loot),
+      specialRooms: Map<Point<int>, SpecialRoomType>.from(specialRooms),
+      visitedSpecialRooms: Set<Point<int>>.from(_visitedSpecialRooms),
+      hp: hp,
+      maxHp: maxHp,
+      steps: steps,
+      floor: floor,
+      shards: shards,
+      mapVisualSeed: mapVisualSeed,
+      damageFlashTick: damageFlashTick,
+      hitStopTick: hitStopTick,
+      stamina: stamina,
+      maxStamina: maxStamina,
+      facingDx: _facingDx,
+      facingDy: _facingDy,
+      potions: potions,
+      bombs: bombs,
+      temporalShields: temporalShields,
+      shieldTurns: shieldTurns,
+      message: message,
+      activeRelics: List<RelicType>.from(activeRelics),
+      pendingRewards: List<RewardOption>.from(pendingRewards),
+      pendingShopItems: List<ShopItem>.from(pendingShopItems),
+      shopPhaseActive: _shopPhaseActive,
+      shopFeedbackMessage: shopFeedbackMessage,
+      shopFeedbackIsError: shopFeedbackIsError,
+      kills: kills,
+      lootCollected: lootCollected,
+      runStartedAtEpochMs: _runStartedAt.millisecondsSinceEpoch,
+    );
+  }
+
+  Map<String, dynamic> _snapshotToJson(RunSnapshot snapshot) {
+    return {
+      'difficulty': snapshot.difficulty.storageKey,
+      'map': snapshot.map,
+      'player': _pointToJson(snapshot.player),
+      'exit': _pointToJson(snapshot.exit),
+      'enemies': [
+        for (final enemy in snapshot.enemies)
+          {
+            'id': enemy.id,
+            'position': _pointToJson(enemy.position),
+            'hp': enemy.hp,
+            'maxHp': enemy.maxHp,
+            'isBoss': enemy.isBoss,
+            'type': enemy.type.index,
+            'aiState': enemy.aiState,
+          },
+      ],
+      'loot': [
+        for (final drop in snapshot.loot)
+          {
+            'id': drop.id,
+            'type': drop.type.index,
+            'rarity': drop.rarity.index,
+            'position': _pointToJson(drop.position),
+          },
+      ],
+      'specialRooms': [
+        for (final entry in snapshot.specialRooms.entries)
+          {'x': entry.key.x, 'y': entry.key.y, 'type': entry.value.index},
+      ],
+      'visitedSpecialRooms': [
+        for (final cell in snapshot.visitedSpecialRooms) _pointToJson(cell),
+      ],
+      'hp': snapshot.hp,
+      'maxHp': snapshot.maxHp,
+      'steps': snapshot.steps,
+      'floor': snapshot.floor,
+      'shards': snapshot.shards,
+      'mapVisualSeed': snapshot.mapVisualSeed,
+      'damageFlashTick': snapshot.damageFlashTick,
+      'hitStopTick': snapshot.hitStopTick,
+      'stamina': snapshot.stamina,
+      'maxStamina': snapshot.maxStamina,
+      'facingDx': snapshot.facingDx,
+      'facingDy': snapshot.facingDy,
+      'potions': snapshot.potions,
+      'bombs': snapshot.bombs,
+      'temporalShields': snapshot.temporalShields,
+      'shieldTurns': snapshot.shieldTurns,
+      'message': snapshot.message,
+      'activeRelics': [for (final relic in snapshot.activeRelics) relic.index],
+      'pendingRewards': [
+        for (final reward in snapshot.pendingRewards)
+          {
+            'relic': reward.relic.index,
+            'title': reward.title,
+            'description': reward.description,
+          },
+      ],
+      'pendingShopItems': [
+        for (final item in snapshot.pendingShopItems)
+          {
+            'consumable': item.consumable.index,
+            'cost': item.cost,
+            'title': item.title,
+            'description': item.description,
+          },
+      ],
+      'shopPhaseActive': snapshot.shopPhaseActive,
+      'shopFeedbackMessage': snapshot.shopFeedbackMessage,
+      'shopFeedbackIsError': snapshot.shopFeedbackIsError,
+      'kills': snapshot.kills,
+      'lootCollected': snapshot.lootCollected,
+      'runStartedAtEpochMs': snapshot.runStartedAtEpochMs,
+    };
+  }
+
+  void _restoreFromSnapshot(RunSnapshot snapshot) {
+    map = [
+      for (final row in snapshot.map)
+        [for (final tile in row) TileType.values[tile]],
+    ];
+    player = snapshot.player;
+    exit = snapshot.exit;
+    enemies = List<EnemyEntity>.from(snapshot.enemies);
+    loot = List<LootDrop>.from(snapshot.loot);
+    specialRooms = Map<Point<int>, SpecialRoomType>.from(snapshot.specialRooms);
+    _visitedSpecialRooms
+      ..clear()
+      ..addAll(snapshot.visitedSpecialRooms);
+    hp = snapshot.hp;
+    maxHp = snapshot.maxHp;
+    steps = snapshot.steps;
+    floor = snapshot.floor;
+    shards = snapshot.shards;
+    mapVisualSeed = snapshot.mapVisualSeed;
+    damageFlashTick = snapshot.damageFlashTick;
+    hitStopTick = snapshot.hitStopTick;
+    stamina = snapshot.stamina;
+    maxStamina = snapshot.maxStamina;
+    _facingDx = snapshot.facingDx;
+    _facingDy = snapshot.facingDy;
+    potions = snapshot.potions;
+    bombs = snapshot.bombs;
+    temporalShields = snapshot.temporalShields;
+    shieldTurns = snapshot.shieldTurns;
+    message = snapshot.message;
+    activeRelics
+      ..clear()
+      ..addAll(snapshot.activeRelics);
+    pendingRewards = List<RewardOption>.from(snapshot.pendingRewards);
+    pendingShopItems = List<ShopItem>.from(snapshot.pendingShopItems);
+    _shopPhaseActive = snapshot.shopPhaseActive;
+    shopFeedbackMessage = snapshot.shopFeedbackMessage;
+    shopFeedbackIsError = snapshot.shopFeedbackIsError;
+    kills = snapshot.kills;
+    lootCollected = snapshot.lootCollected;
+    _runStartedAt = DateTime.fromMillisecondsSinceEpoch(
+      snapshot.runStartedAtEpochMs,
+    );
+    _isGameOver = false;
+    lastRunSummary = null;
+    lootParticlePositions = const [];
+    enemyDeathParticlePositions = const [];
+    previousPlayer = player;
+    previousEnemyPositions = {
+      for (final enemy in enemies) enemy.id: enemy.position,
+    };
+    _buildTelegraphMap();
+  }
+
+  Future<void> _persistRunIfNeeded() async {
+    if (_isPersisting || _isGameOver) {
+      return;
+    }
+
+    if (!(_hasMapData())) {
+      return;
+    }
+
+    _isPersisting = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final snapshot = _buildSnapshot();
+      final encoded = jsonEncode(_snapshotToJson(snapshot));
+      await prefs.setString(_savedRunKey, encoded);
+    } catch (_) {
+      // Falha de persistencia nao deve interromper a run.
+    } finally {
+      _isPersisting = false;
+    }
+  }
+
+  bool _hasMapData() {
+    try {
+      return map.isNotEmpty && map[0].isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  void notifyListeners() {
+    super.notifyListeners();
+    unawaited(_persistRunIfNeeded());
   }
 
   Offset viewportOrigin() {
