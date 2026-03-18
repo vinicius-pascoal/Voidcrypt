@@ -34,6 +34,7 @@ V
 ## 6. UX e qualidade de vida
 4. Tela de pause com retomar, reiniciar e sair.
 
+
 ## 8. Menu e apresentacao
 1. Continuar automaticamente da ultima run.
 2. Selecao de dificuldade: normal, hard e nightmare.
