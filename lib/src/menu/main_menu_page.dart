@@ -425,10 +425,36 @@ class _MainMenuPageState extends State<MainMenuPage> {
                               showDialog<void>(
                                 context: context,
                                 builder: (context) {
+                                  final dialogMaxHeight =
+                                      MediaQuery.of(context).size.height * 0.62;
+
                                   return AlertDialog(
                                     title: const Text('Como jogar'),
-                                    content: const Text(
-                                      'Use os controles a direita para mover, atacar e esperar turnos.\n\nColete loot para sobreviver e encontre a saida de cada piso.',
+                                    content: ConstrainedBox(
+                                      constraints: BoxConstraints(
+                                        maxHeight: dialogMaxHeight,
+                                      ),
+                                      child: const SingleChildScrollView(
+                                        child: Text(
+                                          'Bem-vindo ao Voidcrypt! Seu objetivo e atravessar os pisos da dungeon ate encontrar a saida de cada andar.\n\n'
+                                          '1. Movimentacao e turnos\n'
+                                          '- Cada acao conta como um turno.\n'
+                                          '- Use os botoes de direcao para se mover.\n'
+                                          '- Use Esperar para passar o turno com seguranca quando precisar reposicionar inimigos.\n\n'
+                                          '2. Combate\n'
+                                          '- Ataque para causar dano em inimigos adjacentes.\n'
+                                          '- Ataque forte gasta mais recursos, mas pode virar lutas dificeis.\n'
+                                          '- Evite ficar cercado: lute em corredores e portas sempre que possivel.\n\n'
+                                          '3. Classe e habilidade\n'
+                                          '- Cada classe de slime tem uma habilidade unica com tempo de recarga.\n'
+                                          '- Use a habilidade nos momentos criticos, nao apenas quando estiver em perigo.\n\n'
+                                          '4. Progressao e sobrevivencia\n'
+                                          '- Colete loot para melhorar suas chances no proximo confronto.\n'
+                                          '- Gerencie vida e stamina; avancar com poucos recursos e arriscado.\n'
+                                          '- Se existir run salva, voce pode continuar depois pelo menu inicial.\n\n'
+                                          'Dica de iniciante: avance com calma, puxe um inimigo por vez e mantenha sempre uma rota de fuga.',
+                                        ),
+                                      ),
                                     ),
                                     actions: [
                                       TextButton(
