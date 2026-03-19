@@ -39,6 +39,10 @@ flutter:
   uses-material-design: true
   assets:
     - assets/character/
+    - assets/character/ladino/rotations/
+    - assets/character/guardiao/rotations/
+    - assets/character/acido/rotations/
+    - assets/character/mago/rotations/
     - assets/enemies/archer/
     - assets/enemies/tank/
     - assets/enemies/summoner/

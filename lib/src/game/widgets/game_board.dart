@@ -39,6 +39,50 @@ class GameBoard extends StatelessWidget {
     '-1,-1': 'assets/character/north-west.png',
   };
 
+  static const Map<PlayerClass, Map<String, String>>
+  _playerClassSpriteByDirection = {
+    PlayerClass.slimeRogue: {
+      '0,-1': 'assets/character/ladino/rotations/north.png',
+      '1,-1': 'assets/character/ladino/rotations/north-east.png',
+      '1,0': 'assets/character/ladino/rotations/east.png',
+      '1,1': 'assets/character/ladino/rotations/south-east.png',
+      '0,1': 'assets/character/ladino/rotations/south.png',
+      '-1,1': 'assets/character/ladino/rotations/south-west.png',
+      '-1,0': 'assets/character/ladino/rotations/west.png',
+      '-1,-1': 'assets/character/ladino/rotations/north-west.png',
+    },
+    PlayerClass.slimeGuardian: {
+      '0,-1': 'assets/character/guardiao/rotations/north.png',
+      '1,-1': 'assets/character/guardiao/rotations/north-east.png',
+      '1,0': 'assets/character/guardiao/rotations/east.png',
+      '1,1': 'assets/character/guardiao/rotations/south-east.png',
+      '0,1': 'assets/character/guardiao/rotations/south.png',
+      '-1,1': 'assets/character/guardiao/rotations/south-west.png',
+      '-1,0': 'assets/character/guardiao/rotations/west.png',
+      '-1,-1': 'assets/character/guardiao/rotations/north-west.png',
+    },
+    PlayerClass.slimeSpitter: {
+      '0,-1': 'assets/character/acido/rotations/north.png',
+      '1,-1': 'assets/character/acido/rotations/north-east.png',
+      '1,0': 'assets/character/acido/rotations/east.png',
+      '1,1': 'assets/character/acido/rotations/south-east.png',
+      '0,1': 'assets/character/acido/rotations/south.png',
+      '-1,1': 'assets/character/acido/rotations/south-west.png',
+      '-1,0': 'assets/character/acido/rotations/west.png',
+      '-1,-1': 'assets/character/acido/rotations/north-west.png',
+    },
+    PlayerClass.slimeMage: {
+      '0,-1': 'assets/character/mago/rotations/north.png',
+      '1,-1': 'assets/character/mago/rotations/north-east.png',
+      '1,0': 'assets/character/mago/rotations/east.png',
+      '1,1': 'assets/character/mago/rotations/south-east.png',
+      '0,1': 'assets/character/mago/rotations/south.png',
+      '-1,1': 'assets/character/mago/rotations/south-west.png',
+      '-1,0': 'assets/character/mago/rotations/west.png',
+      '-1,-1': 'assets/character/mago/rotations/north-west.png',
+    },
+  };
+
   static const Map<String, String> _pursuerSpriteByDirection = {
     '0,-1': 'assets/enemies/pursuer/north.png',
     '1,0': 'assets/enemies/pursuer/east.png',
@@ -101,7 +145,10 @@ class GameBoard extends StatelessWidget {
 
   String _playerSpriteAssetPath() {
     final key = '${controller.facingDx},${controller.facingDy}';
-    return _playerSpriteByDirection[key] ?? 'assets/character/south.png';
+    final classMap = _playerClassSpriteByDirection[controller.playerClass];
+    return classMap?[key] ??
+        _playerSpriteByDirection[key] ??
+        'assets/character/south.png';
   }
 
   String _pursuerSpriteAssetPath(EnemyEntity enemy) {
