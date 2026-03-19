@@ -10,11 +10,13 @@ import 'widgets/game_board.dart';
 
 class GamePage extends StatefulWidget {
   final GameDifficulty difficulty;
+  final PlayerClass playerClass;
   final RunSnapshot? resumeSnapshot;
 
   const GamePage({
     super.key,
     this.difficulty = GameDifficulty.normal,
+    this.playerClass = PlayerClass.slimeRogue,
     this.resumeSnapshot,
   });
 
@@ -116,6 +118,10 @@ class _GamePageState extends State<GamePage> {
                   Icons.diamond_rounded,
                   'Shards ${_controller.shards}',
                 ),
+                _statChip(
+                  Icons.bubble_chart_rounded,
+                  _playerClassLabel(_controller.playerClass),
+                ),
               ],
             ),
           ),
@@ -201,6 +207,45 @@ class _GamePageState extends State<GamePage> {
         return 'Hard';
       case GameDifficulty.nightmare:
         return 'Nightmare';
+    }
+  }
+
+  String _playerClassLabel(PlayerClass playerClass) {
+    switch (playerClass) {
+      case PlayerClass.slimeRogue:
+        return 'Slime Ladino';
+      case PlayerClass.slimeGuardian:
+        return 'Slime Guardiao';
+      case PlayerClass.slimeSpitter:
+        return 'Slime Acido';
+      case PlayerClass.slimeMage:
+        return 'Slime Mago';
+    }
+  }
+
+  String _playerClassAbilityLabel(PlayerClass playerClass) {
+    switch (playerClass) {
+      case PlayerClass.slimeRogue:
+        return 'Dash';
+      case PlayerClass.slimeGuardian:
+        return 'Casca';
+      case PlayerClass.slimeSpitter:
+        return 'Cuspe';
+      case PlayerClass.slimeMage:
+        return 'Nova';
+    }
+  }
+
+  IconData _playerClassAbilityIcon(PlayerClass playerClass) {
+    switch (playerClass) {
+      case PlayerClass.slimeRogue:
+        return Icons.double_arrow_rounded;
+      case PlayerClass.slimeGuardian:
+        return Icons.shield_moon_rounded;
+      case PlayerClass.slimeSpitter:
+        return Icons.blur_circular_rounded;
+      case PlayerClass.slimeMage:
+        return Icons.auto_awesome_rounded;
     }
   }
 
@@ -333,6 +378,7 @@ class _GamePageState extends State<GamePage> {
     super.initState();
     _controller = GameController(
       difficulty: widget.resumeSnapshot?.difficulty ?? widget.difficulty,
+      playerClass: widget.resumeSnapshot?.playerClass ?? widget.playerClass,
       resumeSnapshot: widget.resumeSnapshot,
     )..start();
   }
@@ -740,6 +786,18 @@ class _GamePageState extends State<GamePage> {
                                     onRight: () => _controller.movePlayer(1, 0),
                                     onAttack: _controller.attack,
                                     onWait: _controller.waitTurn,
+                                    onUseClassAbility:
+                                        _controller.useClassAbility,
+                                    classAbilityEnabled:
+                                        _controller.canUseClassAbility,
+                                    classAbilityLabel: _playerClassAbilityLabel(
+                                      _controller.playerClass,
+                                    ),
+                                    classAbilityIcon: _playerClassAbilityIcon(
+                                      _controller.playerClass,
+                                    ),
+                                    classAbilityCooldown:
+                                        _controller.classAbilityCooldown,
                                     potions: _controller.potions,
                                     bombs: _controller.bombs,
                                     temporalShields:

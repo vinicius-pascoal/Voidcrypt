@@ -15,6 +15,11 @@ class ControlPanel extends StatelessWidget {
   final VoidCallback onRight;
   final VoidCallback onAttack;
   final VoidCallback onWait;
+  final VoidCallback onUseClassAbility;
+  final bool classAbilityEnabled;
+  final String classAbilityLabel;
+  final IconData classAbilityIcon;
+  final int classAbilityCooldown;
   final int potions;
   final int bombs;
   final int temporalShields;
@@ -30,6 +35,11 @@ class ControlPanel extends StatelessWidget {
     required this.onRight,
     required this.onAttack,
     required this.onWait,
+    required this.onUseClassAbility,
+    required this.classAbilityEnabled,
+    required this.classAbilityLabel,
+    required this.classAbilityIcon,
+    required this.classAbilityCooldown,
     required this.potions,
     required this.bombs,
     required this.temporalShields,
@@ -139,6 +149,7 @@ class ControlPanel extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxHeight < 560;
+          final verticalGap = compact ? 8.0 : 12.0;
           final controlWidth = min(
             constraints.maxWidth,
             compact ? 320.0 : 420.0,
@@ -146,11 +157,17 @@ class ControlPanel extends StatelessWidget {
           final targetGap = compact ? 8.0 : 10.0;
           final horizontalGap = min(targetGap, max(2.0, controlWidth * 0.05));
           final maxButtonByWidth = (controlWidth - (horizontalGap * 2)) / 3;
+          final reservedHeight = compact ? 128.0 : 148.0;
+          final maxButtonByHeight = max(
+            24.0,
+            (constraints.maxHeight - reservedHeight) / 2,
+          );
           final dpadSize = min(
-            compact ? 54.0 : 68.0,
+            min(compact ? 54.0 : 68.0, maxButtonByHeight),
             max(24.0, maxButtonByWidth),
           );
-          final itemSize = min(dpadSize, compact ? 44.0 : 48.0);
+          final itemSize = min(dpadSize, compact ? 42.0 : 48.0);
+          final abilityHeight = compact ? 38.0 : 42.0;
 
           Widget cluster() {
             return Column(
@@ -181,7 +198,26 @@ class ControlPanel extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: verticalGap),
+                SizedBox(
+                  height: abilityHeight,
+                  width: controlWidth,
+                  child: FilledButton.icon(
+                    onPressed: classAbilityEnabled ? onUseClassAbility : null,
+                    style: _runeButtonStyle(_runeButtonRaised),
+                    icon: Icon(classAbilityIcon, size: compact ? 15 : 17),
+                    label: Text(
+                      classAbilityCooldown > 0
+                          ? '$classAbilityLabel (${classAbilityCooldown}t)'
+                          : classAbilityLabel,
+                      style: TextStyle(
+                        fontSize: compact ? 10 : 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                SizedBox(height: verticalGap),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -204,7 +240,7 @@ class ControlPanel extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
+                SizedBox(height: compact ? 6 : 8),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -235,9 +271,11 @@ class ControlPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: SizedBox(width: controlWidth, child: cluster()),
+                child: SingleChildScrollView(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: SizedBox(width: controlWidth, child: cluster()),
+                  ),
                 ),
               ),
             ],

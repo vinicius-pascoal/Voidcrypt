@@ -64,10 +64,12 @@ class GameController extends ChangeNotifier {
 
   final RunSnapshot? _resumeSnapshot;
   final GameDifficulty difficulty;
+  final PlayerClass playerClass;
   DateTime _runStartedAt = DateTime.now();
   int kills = 0;
   int lootCollected = 0;
   bool _isGameOver = false;
+  int classAbilityCooldown = 0;
   RunSummary? lastRunSummary;
 
   Timer? _animationResetTimer;
@@ -80,9 +82,11 @@ class GameController extends ChangeNotifier {
   bool get isGameOver => _isGameOver;
   int get facingDx => _facingDx;
   int get facingDy => _facingDy;
+  bool get canUseClassAbility => classAbilityCooldown <= 0;
 
   GameController({
     this.difficulty = GameDifficulty.normal,
+    this.playerClass = PlayerClass.slimeRogue,
     RunSnapshot? resumeSnapshot,
   }) : _resumeSnapshot = resumeSnapshot;
 
@@ -191,6 +195,7 @@ class GameController extends ChangeNotifier {
     _facingDy = 1;
     damageFlashTick = 0;
     hitStopTick = 0;
+    classAbilityCooldown = 0;
     kills = 0;
     lootCollected = 0;
     _isGameOver = false;
@@ -391,6 +396,174 @@ class GameController extends ChangeNotifier {
     _facingDy = dy.sign;
   }
 
+  void _collectLootAtPlayer() {
+    final lootIndex = _lootIndexAt(player);
+    if (lootIndex == -1) {
+      return;
+    }
+
+    final drop = loot.removeAt(lootIndex);
+    _emitLootParticles(player);
+    final rarityMultiplier = switch (drop.rarity) {
+      LootRarity.common => 1,
+      LootRarity.rare => 2,
+      LootRarity.epic => 3,
+    };
+
+    lootCollected += 1;
+    if (drop.type == LootType.essence) {
+      final healAmount = rarityMultiplier;
+      hp = min(maxHp, hp + healAmount);
+      message = switch (drop.rarity) {
+        LootRarity.common => 'Essencia comum: +1 HP.',
+        LootRarity.rare => 'Essencia rara: +2 HP.',
+        LootRarity.epic => 'Essencia epica: +3 HP.',
+      };
+      return;
+    }
+
+    final shardGain = rarityMultiplier;
+    shards += shardGain;
+    message = switch (drop.rarity) {
+      LootRarity.common => 'Shard comum +1. Total: $shards.',
+      LootRarity.rare => 'Shard raro +2. Total: $shards.',
+      LootRarity.epic => 'Shard epico +3. Total: $shards.',
+    };
+  }
+
+  Point<int>? _dashDestination(int dx, int dy) {
+    var current = player;
+    for (int i = 0; i < 2; i++) {
+      final next = Point<int>(current.x + dx, current.y + dy);
+      if (_isWall(next) || _enemyIndexAt(next) != -1) {
+        break;
+      }
+      current = next;
+    }
+
+    if (current == player) {
+      return null;
+    }
+    return current;
+  }
+
+  void useClassAbility() {
+    if (_busy ||
+        isGameOver ||
+        isAwaitingRewardChoice ||
+        isAwaitingShopChoice ||
+        !canUseClassAbility) {
+      return;
+    }
+
+    _busy = true;
+    _captureAnimationOrigins();
+    steps++;
+
+    switch (playerClass) {
+      case PlayerClass.slimeRogue:
+        final destination = _dashDestination(_facingDx, _facingDy);
+        if (destination == null) {
+          message = 'Dash bloqueado.';
+          _busy = false;
+          notifyListeners();
+          return;
+        }
+        player = destination;
+        _triggerHitStop();
+        classAbilityCooldown = 4;
+        message = 'Dash de lodo executado!';
+        _collectLootAtPlayer();
+        _handleSpecialRoomEntry(player);
+        break;
+      case PlayerClass.slimeGuardian:
+        shieldTurns = max(shieldTurns, 3);
+        hp = min(maxHp, hp + 1);
+        classAbilityCooldown = 5;
+        message = 'Casca viscosa ativada: escudo e +1 HP.';
+        break;
+      case PlayerClass.slimeSpitter:
+        var targetIndex = -1;
+        for (int step = 1; step <= 3; step++) {
+          final target = Point<int>(
+            player.x + (_facingDx * step),
+            player.y + (_facingDy * step),
+          );
+          if (_isWall(target)) {
+            break;
+          }
+          final idx = _enemyIndexAt(target);
+          if (idx != -1) {
+            targetIndex = idx;
+            break;
+          }
+        }
+
+        if (targetIndex == -1) {
+          message = 'Cuspe acido sem alvo.';
+          _busy = false;
+          notifyListeners();
+          return;
+        }
+
+        final killed = _applyDamageToEnemy(targetIndex, 2);
+        classAbilityCooldown = 4;
+        _triggerHitStop();
+        if (killed) {
+          message = 'Cuspe acido dissolveu um inimigo!';
+        } else {
+          message = 'Cuspe acido acertou em cheio.';
+        }
+        break;
+      case PlayerClass.slimeMage:
+        final targets = <int>[];
+        for (int i = 0; i < enemies.length; i++) {
+          final enemy = enemies[i];
+          final distance =
+              (enemy.position.x - player.x).abs() +
+              (enemy.position.y - player.y).abs();
+          if (distance == 1) {
+            targets.add(i);
+          }
+        }
+
+        targets.sort((a, b) => b.compareTo(a));
+        int killsByNova = 0;
+        for (final i in targets) {
+          if (i < enemies.length && _applyDamageToEnemy(i, 1)) {
+            killsByNova += 1;
+          }
+        }
+
+        classAbilityCooldown = 4;
+        stamina = min(maxStamina, stamina + 1);
+        _triggerHitStop();
+        if (targets.isEmpty) {
+          message = 'Nova Arcana sem alvos, mas sua energia foi renovada.';
+        } else if (killsByNova > 0) {
+          message = 'Nova Arcana vaporizou $killsByNova inimigos!';
+        } else {
+          message = 'Nova Arcana atingiu ${targets.length} alvo(s).';
+        }
+        break;
+    }
+
+    if (player == exit) {
+      floor += 1;
+      hp = min(maxHp, hp + 1);
+      _openRewardSelection();
+      _busy = false;
+      notifyListeners();
+      return;
+    }
+
+    _enemyTurn();
+    _afterTurn();
+    _queueAnimationReset();
+    notifyListeners();
+    _busy = false;
+  }
+
   void movePlayer(int dx, int dy) {
     if (_busy || isGameOver || isAwaitingRewardChoice || isAwaitingShopChoice) {
       return;
@@ -449,33 +622,7 @@ class GameController extends ChangeNotifier {
 
     final lootIndex = _lootIndexAt(player);
     if (lootIndex != -1) {
-      final drop = loot.removeAt(lootIndex);
-      _emitLootParticles(player);
-      final rarityMultiplier = switch (drop.rarity) {
-        LootRarity.common => 1,
-        LootRarity.rare => 2,
-        LootRarity.epic => 3,
-      };
-
-      if (drop.type == LootType.essence) {
-        lootCollected += 1;
-        final healAmount = rarityMultiplier;
-        hp = min(maxHp, hp + healAmount);
-        message = switch (drop.rarity) {
-          LootRarity.common => 'Essencia comum: +1 HP.',
-          LootRarity.rare => 'Essencia rara: +2 HP.',
-          LootRarity.epic => 'Essencia epica: +3 HP.',
-        };
-      } else {
-        lootCollected += 1;
-        final shardGain = rarityMultiplier;
-        shards += shardGain;
-        message = switch (drop.rarity) {
-          LootRarity.common => 'Shard comum +1. Total: $shards.',
-          LootRarity.rare => 'Shard raro +2. Total: $shards.',
-          LootRarity.epic => 'Shard epico +3. Total: $shards.',
-        };
-      }
+      _collectLootAtPlayer();
     } else {
       message = 'Voce avancou entre as salas.';
     }
@@ -1122,6 +1269,9 @@ class GameController extends ChangeNotifier {
     if (shieldTurns > 0) {
       shieldTurns -= 1;
     }
+    if (classAbilityCooldown > 0) {
+      classAbilityCooldown -= 1;
+    }
 
     if (enemies.isEmpty) {
       if (playerWasHit) {
@@ -1313,6 +1463,9 @@ class GameController extends ChangeNotifier {
       difficulty: GameDifficultyCodec.fromStorageKey(
         json['difficulty'] as String?,
       ),
+      playerClass: PlayerClassCodec.fromStorageKey(
+        json['playerClass'] as String?,
+      ),
       map: [
         for (final row in (json['map'] as List<dynamic>))
           [for (final value in (row as List<dynamic>)) (value as num).toInt()],
@@ -1378,6 +1531,8 @@ class GameController extends ChangeNotifier {
       shopFeedbackIsError: json['shopFeedbackIsError'] as bool? ?? false,
       kills: (json['kills'] as num?)?.toInt() ?? 0,
       lootCollected: (json['lootCollected'] as num?)?.toInt() ?? 0,
+      classAbilityCooldown:
+          (json['classAbilityCooldown'] as num?)?.toInt() ?? 0,
       runStartedAtEpochMs:
           (json['runStartedAtEpochMs'] as num?)?.toInt() ??
           DateTime.now().millisecondsSinceEpoch,
@@ -1387,6 +1542,7 @@ class GameController extends ChangeNotifier {
   RunSnapshot _buildSnapshot() {
     return RunSnapshot(
       difficulty: difficulty,
+      playerClass: playerClass,
       map: [
         for (final row in map) [for (final tile in row) tile.index],
       ],
@@ -1421,6 +1577,7 @@ class GameController extends ChangeNotifier {
       shopFeedbackIsError: shopFeedbackIsError,
       kills: kills,
       lootCollected: lootCollected,
+      classAbilityCooldown: classAbilityCooldown,
       runStartedAtEpochMs: _runStartedAt.millisecondsSinceEpoch,
     );
   }
@@ -1428,6 +1585,7 @@ class GameController extends ChangeNotifier {
   Map<String, dynamic> _snapshotToJson(RunSnapshot snapshot) {
     return {
       'difficulty': snapshot.difficulty.storageKey,
+      'playerClass': snapshot.playerClass.storageKey,
       'map': snapshot.map,
       'player': _pointToJson(snapshot.player),
       'exit': _pointToJson(snapshot.exit),
@@ -1499,6 +1657,7 @@ class GameController extends ChangeNotifier {
       'shopFeedbackIsError': snapshot.shopFeedbackIsError,
       'kills': snapshot.kills,
       'lootCollected': snapshot.lootCollected,
+      'classAbilityCooldown': snapshot.classAbilityCooldown,
       'runStartedAtEpochMs': snapshot.runStartedAtEpochMs,
     };
   }
@@ -1543,6 +1702,7 @@ class GameController extends ChangeNotifier {
     shopFeedbackIsError = snapshot.shopFeedbackIsError;
     kills = snapshot.kills;
     lootCollected = snapshot.lootCollected;
+    classAbilityCooldown = snapshot.classAbilityCooldown;
     _runStartedAt = DateTime.fromMillisecondsSinceEpoch(
       snapshot.runStartedAtEpochMs,
     );

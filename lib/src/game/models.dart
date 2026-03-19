@@ -2,6 +2,19 @@ import 'dart:math';
 
 enum GameDifficulty { normal, hard, nightmare }
 
+enum PlayerClass { slimeRogue, slimeGuardian, slimeSpitter, slimeMage }
+
+extension PlayerClassCodec on PlayerClass {
+  String get storageKey => name;
+
+  static PlayerClass fromStorageKey(String? raw) {
+    return PlayerClass.values.firstWhere(
+      (value) => value.storageKey == raw,
+      orElse: () => PlayerClass.slimeRogue,
+    );
+  }
+}
+
 extension GameDifficultyCodec on GameDifficulty {
   String get storageKey => name;
 
@@ -153,6 +166,7 @@ class RunSummary {
 
 class RunSnapshot {
   final GameDifficulty difficulty;
+  final PlayerClass playerClass;
   final List<List<int>> map;
   final Point<int> player;
   final Point<int> exit;
@@ -185,10 +199,12 @@ class RunSnapshot {
   final bool shopFeedbackIsError;
   final int kills;
   final int lootCollected;
+  final int classAbilityCooldown;
   final int runStartedAtEpochMs;
 
   const RunSnapshot({
     required this.difficulty,
+    required this.playerClass,
     required this.map,
     required this.player,
     required this.exit,
@@ -221,6 +237,7 @@ class RunSnapshot {
     required this.shopFeedbackIsError,
     required this.kills,
     required this.lootCollected,
+    required this.classAbilityCooldown,
     required this.runStartedAtEpochMs,
   });
 }

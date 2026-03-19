@@ -13,6 +13,7 @@ class MainMenuPage extends StatefulWidget {
 
 class _MainMenuPageState extends State<MainMenuPage> {
   GameDifficulty _selectedDifficulty = GameDifficulty.normal;
+  PlayerClass _selectedPlayerClass = PlayerClass.slimeRogue;
   RunSnapshot? _savedSnapshot;
   bool _loadingSavedRun = true;
 
@@ -33,6 +34,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
       _loadingSavedRun = false;
       if (snapshot != null) {
         _selectedDifficulty = snapshot.difficulty;
+        _selectedPlayerClass = snapshot.playerClass;
       }
     });
   }
@@ -48,6 +50,19 @@ class _MainMenuPageState extends State<MainMenuPage> {
     }
   }
 
+  String _playerClassLabel(PlayerClass playerClass) {
+    switch (playerClass) {
+      case PlayerClass.slimeRogue:
+        return 'Slime Ladino';
+      case PlayerClass.slimeGuardian:
+        return 'Slime Guardiao';
+      case PlayerClass.slimeSpitter:
+        return 'Slime Acido';
+      case PlayerClass.slimeMage:
+        return 'Slime Mago';
+    }
+  }
+
   Future<void> _openGame({required bool forceNewRun}) async {
     final snapshot = forceNewRun ? null : _savedSnapshot;
 
@@ -58,6 +73,7 @@ class _MainMenuPageState extends State<MainMenuPage> {
         pageBuilder: (context, animation, secondaryAnimation) {
           return GamePage(
             difficulty: _selectedDifficulty,
+            playerClass: _selectedPlayerClass,
             resumeSnapshot: snapshot,
           );
         },
@@ -213,13 +229,50 @@ class _MainMenuPageState extends State<MainMenuPage> {
                                 if (hasSavedRun) ...[
                                   const SizedBox(height: 8),
                                   Text(
-                                    'Run salva detectada: piso ${_savedSnapshot!.floor} (${_difficultyLabel(_savedSnapshot!.difficulty)}).',
+                                    'Run salva detectada: piso ${_savedSnapshot!.floor} (${_difficultyLabel(_savedSnapshot!.difficulty)} | ${_playerClassLabel(_savedSnapshot!.playerClass)}).',
                                     style: const TextStyle(
                                       color: Color(0xFFE8D3AE),
                                       fontSize: 12,
                                     ),
                                   ),
                                 ],
+                                const SizedBox(height: 10),
+                                Text(
+                                  'Classe Slime',
+                                  style: Theme.of(context).textTheme.titleSmall
+                                      ?.copyWith(
+                                        color: const Color(0xFFFFE8C2),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                ),
+                                const SizedBox(height: 8),
+                                SegmentedButton<PlayerClass>(
+                                  segments: const [
+                                    ButtonSegment(
+                                      value: PlayerClass.slimeRogue,
+                                      label: Text('Ladino'),
+                                    ),
+                                    ButtonSegment(
+                                      value: PlayerClass.slimeGuardian,
+                                      label: Text('Guardiao'),
+                                    ),
+                                    ButtonSegment(
+                                      value: PlayerClass.slimeSpitter,
+                                      label: Text('Acido'),
+                                    ),
+                                    ButtonSegment(
+                                      value: PlayerClass.slimeMage,
+                                      label: Text('Mago'),
+                                    ),
+                                  ],
+                                  selected: {_selectedPlayerClass},
+                                  showSelectedIcon: false,
+                                  onSelectionChanged: (selection) {
+                                    setState(() {
+                                      _selectedPlayerClass = selection.first;
+                                    });
+                                  },
+                                ),
                               ],
                             ),
                           ),
