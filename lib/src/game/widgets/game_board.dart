@@ -147,6 +147,7 @@ class GameBoard extends StatelessWidget {
     final key = '${controller.facingDx},${controller.facingDy}';
     final classMap = _playerClassSpriteByDirection[controller.playerClass];
     return classMap?[key] ??
+        classMap?['0,1'] ??
         _playerSpriteByDirection[key] ??
         'assets/character/south.png';
   }
