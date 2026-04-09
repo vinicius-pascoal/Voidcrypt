@@ -1,105 +1,92 @@
 # Voidcrypt
 
-Voidcrypt e um roguelike tatico em turnos feito com Flutter, com geracao procedural, progressao de run, combate com stamina, inimigos com comportamentos distintos e foco em feedback visual.
+Voidcrypt é um roguelike tático em turnos feito com Flutter. O jogo combina geração procedural de dungeon, progressão por run, sistema de stamina, classes jogáveis e inimigos com comportamentos distintos.
 
-## Visao geral
+## Demo
 
-- Plataforma: Flutter (Android, iOS, Web, Desktop)
-- Genero: roguelike dungeon crawler em turnos
-- Tema visual: dark fantasy com UI roxo+dourado
-- Estado atual: jogavel com sistemas principais de combate, progressao e metajogo
+![Demo do Voidcrypt](demo.jpg)
+
+## Sumário
+
+- [Visão geral](#visão-geral)
+- [Funcionalidades implementadas](#funcionalidades-implementadas)
+- [Controles](#controles)
+- [Dificuldade](#dificuldade)
+- [Classes jogáveis](#classes-jogáveis)
+- [Persistência de run](#persistência-de-run)
+- [Estrutura principal do projeto](#estrutura-principal-do-projeto)
+- [Como executar](#como-executar)
+- [Assets](#assets)
+- [Status do projeto](#status-do-projeto)
+
+## Visão geral
+
+- Plataforma: Flutter (Android, iOS, Web, Linux, macOS e Windows)
+- Gênero: roguelike dungeon crawler em turnos
+- Tema visual: dark fantasy com paleta roxo/dourado
+- Orientação: landscape (forçada no app)
 
 ## Funcionalidades implementadas
 
-### 1. Progressao de run
+### Progressão de run
 
-- Reliquias passivas por piso:
-	- +1 alcance de ataque
-	- +10% chance de critico
-	- +1 HP maximo (com cura)
+- Relíquias passivas por piso:
+  - +1 alcance de ataque
+  - +10% de chance de crítico
+  - +1 HP máximo e +1 de cura
 - Escolha de recompensa ao concluir piso
-- Mini-chefes a cada 3 pisos (a partir do piso 6)
+- Loja entre pisos para gastar shards
+- Mini-chefes em pisos específicos do ciclo de progressão
 
-### 2. Combate mais profundo
+### Combate e IA
 
 - Inimigos com IA distinta:
-	- Pursuer (perseguidor)
-	- Archer (ataque a distancia em linha)
-	- Tank (mais resistente e ritmo diferente de avancar)
-	- Summoner (invoca reforcos)
-	- Boss (versao mais perigosa)
+  - Pursuer (perseguidor)
+  - Archer (ataque à distância)
+  - Tank (mais resistente)
+  - Summoner (invoca reforços)
+  - Boss (variante de maior ameaça)
 - Sistema de stamina:
-	- Ataque forte consome mais stamina
-	- Esperar recupera stamina
-- Telegraph de dano inimigo com marcacao no tabuleiro
-- Knockback em golpes corpo a corpo/fortes quando possivel
-- Visao inimiga limitada por distancia e linha de visao
+  - Atacar consome stamina
+  - Esperar recupera stamina
+- Telegraph de dano inimigo no tabuleiro
+- Knockback em golpes quando aplicável
+- Visão inimiga limitada por distância e linha de visão
 
-### 3. Loot e economia
+### Loot, economia e salas especiais
 
-- Loja entre pisos para gastar shards
-- Consumiveis:
-	- Pocao
-	- Bomba
-	- Escudo temporal
-- Raridades de loot (comum, raro, epico) com brilho/cor
-- Feedback visual de compra na loja (sucesso/erro)
-
-### 4. Geracao procedural avancada
-
+- Loot com raridades: comum, raro e épico
+- Consumíveis na loja:
+  - Poção
+  - Bomba
+  - Escudo Temporal
 - Salas especiais:
-	- Tesouro
-	- Evento
-	- Armadilha
-	- Altar
-- Conectividade com loops e rotas alternativas
-- Distribuicao de inimigos/loot escalonada por piso
+  - Tesouro
+  - Evento
+  - Armadilha
+  - Altar
 
-### 5. Feedback visual
+### UX e apresentação
 
-- Camera shake ao receber dano
-- Hit stop curto em ataques com impacto
-- Particulas em:
-	- Coleta de loot
-	- Morte de inimigos
-- Onda de choque local para reforcar eventos de impacto
-
-### 6. UX e qualidade de vida
-
-- Menu de pausa com:
-	- Retomar
-	- Reiniciar
-	- Sair
-- HUD superior com HP, STA, Piso e Shards
-- Layout responsivo para menu inicial e game over (sem overflow)
-
-### 7. Menu e apresentacao
-
-- Continuar automaticamente da ultima run salva
-- Selecao de dificuldade:
-	- Normal
-	- Hard
-	- Nightmare
-- Tela de game over com resumo da run:
-	- Dificuldade
-	- Piso alcancado
-	- Kills
-	- Tempo
-	- Loot coletado
-	- Shards finais
+- Menu inicial com continuar run salva
+- Seleção de dificuldade: Normal, Hard e Nightmare
+- Seleção de classe antes de iniciar novo jogo
+- Tela de game over com resumo da run
+- Menu de pausa com retomar, reiniciar e sair
 
 ## Controles
 
 ### Painel de controles (UI)
 
 - Movimento: cima, baixo, esquerda, direita
-- Acao:
-	- Atacar
-	- Esperar
+- Ações:
+  - Atacar
+  - Esperar
+  - Habilidade da classe
 - Itens:
-	- Pocao
-	- Bomba
-	- Escudo temporal
+  - Poção
+  - Bomba
+  - Escudo Temporal
 
 ### Gestos no tabuleiro
 
@@ -107,33 +94,51 @@ Voidcrypt e um roguelike tatico em turnos feito com Flutter, com geracao procedu
 
 ## Dificuldade
 
-- Normal: baseline
-- Hard: inimigos mais resistentes e dano recebido aumentado
-- Nightmare: mais pressao no combate (inclui stamina base menor)
+- Normal:
+  - HP base do jogador: 5
+  - Stamina base: 4
+  - Bônus inimigo: +0 HP, +0 dano recebido
+- Hard:
+  - HP base do jogador: 4
+  - Stamina base: 4
+  - Bônus inimigo: +1 HP, +1 dano recebido
+- Nightmare:
+  - HP base do jogador: 4
+  - Stamina base: 3
+  - Bônus inimigo: +2 HP, +2 dano recebido
 
-## Persistencia de run
+## Classes jogáveis
+
+- Slime Ladino
+- Slime Guardião
+- Slime Ácido
+- Slime Mago
+
+Cada classe possui habilidade própria com cooldown.
+
+## Persistência de run
 
 - O jogo salva automaticamente o estado da run localmente.
 - Ao abrir o menu inicial:
-	- Se houver run salva, o botao principal vira Continuar Run.
-	- Voce ainda pode iniciar Nova Run com a dificuldade selecionada.
+  - Se houver run salva, o botão principal vira Continuar Run.
+  - Também é possível iniciar um Novo Jogo.
 
 ## Estrutura principal do projeto
 
-- `lib/src/game/game_controller.dart`: estado da partida, turnos, IA, combate, persistencia e game over
-- `lib/src/game/dungeon_generator.dart`: geracao procedural de mapas/salas
+- `lib/src/game/game_controller.dart`: estado da partida, turnos, IA, combate, persistência e game over
+- `lib/src/game/dungeon_generator.dart`: geração procedural de mapas e salas
 - `lib/src/game/game_page.dart`: tela principal, HUD, overlays e fluxo visual
-- `lib/src/game/widgets/game_board.dart`: render do tabuleiro, sprites e efeitos visuais
-- `lib/src/game/widgets/control_panel.dart`: controles e uso de itens
-- `lib/src/menu/main_menu_page.dart`: menu inicial, dificuldade e continuar run
-- `lib/src/game/models.dart`: modelos e enums do dominio
+- `lib/src/game/widgets/game_board.dart`: render do tabuleiro, sprites, gestos e efeitos visuais
+- `lib/src/game/widgets/control_panel.dart`: controles e uso de itens/habilidades
+- `lib/src/menu/main_menu_page.dart`: menu inicial, seleção de dificuldade/classe e continuar run
+- `lib/src/game/models.dart`: modelos e enums do domínio
 
 ## Como executar
 
 ### Requisitos
 
-- Flutter SDK compativel com o projeto
-- Dart SDK compativel com o `pubspec.yaml`
+- Flutter SDK compatível
+- Dart SDK compatível com o `pubspec.yaml` (SDK `^3.10.7`)
 
 ### Passos
 
@@ -142,7 +147,7 @@ flutter pub get
 flutter run
 ```
 
-### Analise estatica
+### Análise estática
 
 ```bash
 flutter analyze
@@ -153,12 +158,12 @@ flutter analyze
 - Personagem com sprites direcionais
 - Sprites direcionais para os tipos de inimigo
 - Tiles de piso e muro
-- Icones e recursos visuais em `assets/`
+- Ícones e recursos visuais em `assets/`
 
-### Creditos de assets
+### Créditos de assets
 
 - Todos os assets visuais do jogo foram criados usando https://www.pixellab.ai.
 
 ## Status do projeto
 
-O projeto ja possui um loop principal robusto de gameplay (geracao, combate, progressao, economia, pausa, persistencia e game over) e esta pronto para iteracoes de balanceamento e expansao de conteudo.
+O projeto já possui um loop principal robusto de gameplay (geração, combate, progressão, economia, pausa, persistência e game over) e está pronto para iterações de balanceamento e expansão de conteúdo.
